@@ -6,7 +6,8 @@ import { Spade } from "lucide-react";
 export function Nav() {
   const path = usePathname();
   const links = [
-    { href: "/", label: "Mesa" },
+    { href: "/host", label: "Crear sala" },
+    { href: "/join", label: "Unirse" },
     { href: "/players", label: "Jugadores" },
   ];
   return (
@@ -21,7 +22,7 @@ export function Nav() {
         </Link>
         <ul className="flex items-center gap-1">
           {links.map((l) => {
-            const active = path === l.href;
+            const active = path === l.href || path?.startsWith(l.href + "/");
             return (
               <li key={l.href}>
                 <Link

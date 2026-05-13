@@ -1,8 +1,8 @@
 "use client";
 import { useMemo, useRef, useState } from "react";
 import confetti from "canvas-confetti";
-import { Trophy } from "lucide-react";
-import type { GameState, Player } from "@/lib/poker";
+import { SkipForward, Trophy } from "lucide-react";
+import type { Card, GameState, Player } from "@/lib/poker";
 import { advance, deal } from "@/lib/poker";
 import {
   CATEGORY_LABEL,
@@ -21,6 +21,11 @@ import { DealControls } from "./DealControls";
 import { AllInModal } from "./AllInModal";
 import { RunResults } from "./RunResults";
 import { StatsPanel } from "@/components/StatsPanel";
+import { EquityPanel } from "@/components/EquityPanel";
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 export function PokerTable() {
   const { players, hydrated } = usePlayers();
@@ -31,13 +36,22 @@ export function PokerTable() {
   const [allInOpen, setAllInOpen] = useState(false);
   const [runs, setRuns] = useState<RunOne[] | null>(null);
   const [running, setRunning] = useState(false);
-  const rootRef = useRef<HTMLDivElement | null>(null);
+  const [playback, setPlayback] = useState<{
+    runs: RunOne[];
+    idx: number;
+  } | null>(null);
+  const [runHighlight, setRunHighlight] = useState<string[]>([]);
+  const skipRef = useRef(false);
 
-  const { equity, outs, runMany } = useEquity(result ? null : state);
+  const { equity, outs, runMany } = useEquity(
+    result || playback ? null : state,
+  );
 
   function startDeal(selected: Player[]) {
     setResult(null);
     setRuns(null);
+    setPlayback(null);
+    setRunHighlight([]);
     setState(deal(selected));
   }
 
@@ -45,6 +59,8 @@ export function PokerTable() {
     if (!state) return;
     setResult(null);
     setRuns(null);
+    setPlayback(null);
+    setRunHighlight([]);
     setState(deal(state.seats.map((s) => s.player)));
   }
 
@@ -57,6 +73,8 @@ export function PokerTable() {
   function reset() {
     setResult(null);
     setRuns(null);
+    setPlayback(null);
+    setRunHighlight([]);
     setState(null);
   }
 
@@ -71,7 +89,7 @@ export function PokerTable() {
   }
 
   function toggleFold(id: string) {
-    if (!state || result) return;
+    if (!state || result || playback) return;
     setState({
       ...state,
       seats: state.seats.map((s) =>
@@ -112,34 +130,73 @@ export function PokerTable() {
     setRunning(true);
     const got = await runMany(N, state);
     setRunning(false);
-    setRuns(got);
-    const allWinners: string[] = [];
-    for (const r of got) allWinners.push(...r.winners);
-    addWins(allWinners);
-    recordMany(
-      got.map((r, i) => ({
-        players: state.seats.map((s) => ({
-          id: s.player.id,
-          name: s.player.name,
-          seed: s.player.seed,
-        })),
-        community: r.community,
-        winners: r.winners,
-        category: r.category as Category,
-        runIndex: i,
-        runTotal: got.length,
-      })),
+    if (got.length === 0) return;
+    const baselineCommunity = state.community;
+    // reveal all unfolded hole cards
+    setState((s) =>
+      s
+        ? {
+            ...s,
+            seats: s.seats.map((seat) => ({
+              ...seat,
+              revealed: seat.folded ? seat.revealed : true,
+            })),
+          }
+        : s,
     );
-    // reveal all unfolded
-    setState({
-      ...state,
-      community: got[got.length - 1]?.community ?? state.community,
-      street: "river",
-      seats: state.seats.map((s) => ({
-        ...s,
-        revealed: s.folded ? s.revealed : true,
-      })),
-    });
+    skipRef.current = false;
+    await playRuns(got, baselineCommunity);
+  }
+
+  function skipPlayback() {
+    skipRef.current = true;
+  }
+
+  async function playRuns(rs: RunOne[], baselineCommunity: Card[]) {
+    const missing = 5 - baselineCommunity.length;
+    for (let i = 0; i < rs.length; i++) {
+      setPlayback({ runs: rs, idx: i });
+      setRunHighlight([]);
+      setState((s) =>
+        s ? { ...s, community: baselineCommunity, street: "preflop" } : s,
+      );
+      await sleep(skipRef.current ? 50 : 350);
+
+      const run = rs[i];
+      for (let step = 1; step <= missing; step++) {
+        const next = run.community.slice(
+          0,
+          baselineCommunity.length + step,
+        );
+        setState((s) => (s ? { ...s, community: next } : s));
+        await sleep(skipRef.current ? 60 : 720);
+      }
+      setRunHighlight(run.winners);
+      await sleep(skipRef.current ? 200 : 1500);
+    }
+    setRunHighlight([]);
+    setPlayback(null);
+
+    const allWinners: string[] = [];
+    for (const r of rs) allWinners.push(...r.winners);
+    addWins(allWinners);
+    if (state) {
+      recordMany(
+        rs.map((r, i) => ({
+          players: state.seats.map((s) => ({
+            id: s.player.id,
+            name: s.player.name,
+            seed: s.player.seed,
+          })),
+          community: r.community,
+          winners: r.winners,
+          category: r.category as Category,
+          runIndex: i,
+          runTotal: rs.length,
+        })),
+      );
+    }
+    setRuns(rs);
     fireConfetti();
   }
 
@@ -191,14 +248,13 @@ export function PokerTable() {
 
   if (!state) {
     return (
-      <div
-        ref={rootRef}
-        className="w-full flex flex-col lg:flex-row gap-6 items-start"
-      >
+      <div className="w-full flex flex-col lg:flex-row gap-6 items-start">
         <div className="flex-1 min-w-0">
           <PlayerPicker players={players} onDeal={startDeal} />
         </div>
-        <StatsPanel players={players} />
+        <div className="flex flex-col gap-4 w-full lg:w-auto">
+          <StatsPanel players={players} />
+        </div>
       </div>
     );
   }
@@ -206,27 +262,53 @@ export function PokerTable() {
   const canShowdown =
     !result &&
     !running &&
+    !playback &&
     activeCount >= 1 &&
     (state.street === "river" || activeCount === 1);
   const canAdvance =
-    !result && !running && state.street !== "river" && activeCount > 1;
+    !result &&
+    !running &&
+    !playback &&
+    state.street !== "river" &&
+    activeCount > 1;
   const canAllIn =
-    !result && !running && activeCount >= 2 && state.street !== "river";
+    !result &&
+    !running &&
+    !playback &&
+    activeCount >= 2 &&
+    state.street !== "river";
+
+  const highlightForFelt = playback ? runHighlight : winnerIds;
 
   return (
-    <div
-      ref={rootRef}
-      className="w-full flex flex-col lg:flex-row gap-6 items-start"
-    >
+    <div className="w-full flex flex-col lg:flex-row gap-6 items-start">
       <div className="flex-1 min-w-0 flex flex-col items-center gap-6">
+        {playback ? (
+          <PlaybackBanner
+            current={playback.idx + 1}
+            total={playback.runs.length}
+            winners={
+              runHighlight.length > 0
+                ? state.seats
+                    .filter((s) => runHighlight.includes(s.player.id))
+                    .map((s) => s.player.name)
+                : null
+            }
+            category={
+              runHighlight.length > 0
+                ? CATEGORY_LABEL[
+                    playback.runs[playback.idx].category as Category
+                  ]
+                : null
+            }
+            onSkip={skipPlayback}
+          />
+        ) : null}
         <Felt
           key={state.dealId}
           state={state}
-          winners={winnerIds}
+          winners={highlightForFelt}
           showdownDone={!!result || !!runs}
-          equity={equity}
-          outs={outs}
-          unseenCount={unseenCount}
           onToggle={toggleSeat}
           onFoldToggle={toggleFold}
         />
@@ -241,22 +323,34 @@ export function PokerTable() {
             Corriendo runs…
           </div>
         ) : null}
-        <DealControls
-          street={state.street}
-          canAdvance={canAdvance}
-          canShowdown={canShowdown}
-          canAllIn={canAllIn}
-          onAdvance={nextStreet}
-          onShowdown={doShowdown}
-          onAllIn={() => setAllInOpen(true)}
-          onReshuffle={reshuffle}
-          onReset={reset}
-        />
+        {!playback ? (
+          <DealControls
+            street={state.street}
+            canAdvance={canAdvance}
+            canShowdown={canShowdown}
+            canAllIn={canAllIn}
+            onAdvance={nextStreet}
+            onShowdown={doShowdown}
+            onAllIn={() => setAllInOpen(true)}
+            onReshuffle={reshuffle}
+            onReset={reset}
+          />
+        ) : null}
         <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">
           Calle: {state.street} · Activos: {activeCount} · Mazo: {unseenCount}
         </div>
       </div>
-      <StatsPanel players={players} highlightIds={winnerIds} />
+      <div className="flex flex-col gap-4 w-full lg:w-auto">
+        <EquityPanel
+          seats={state.seats}
+          community={state.community}
+          equity={equity}
+          outs={outs}
+          unseenCount={unseenCount}
+          showdownDone={!!result || !!playback || !!runs}
+        />
+        <StatsPanel players={players} highlightIds={winnerIds} />
+      </div>
       {allInOpen ? (
         <AllInModal
           onCancel={() => setAllInOpen(false)}
@@ -270,6 +364,48 @@ export function PokerTable() {
           onClose={() => setRuns(null)}
         />
       ) : null}
+    </div>
+  );
+}
+
+function PlaybackBanner({
+  current,
+  total,
+  winners,
+  category,
+  onSkip,
+}: {
+  current: number;
+  total: number;
+  winners: string[] | null;
+  category: string | null;
+  onSkip: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-rose-500/10 ring-1 ring-rose-300/30 text-rose-100">
+      <span className="text-xs uppercase tracking-[0.2em] tabular-nums">
+        Run {current}/{total}
+      </span>
+      {winners ? (
+        <span className="text-sm">
+          {winners.length > 1 ? "Empate: " : "Gana "}
+          <span className="font-semibold">{winners.join(" · ")}</span>
+          {category ? (
+            <span className="ml-2 text-[11px] text-rose-200/80">
+              {category}
+            </span>
+          ) : null}
+        </span>
+      ) : null}
+      <button
+        type="button"
+        onClick={onSkip}
+        className="inline-flex items-center gap-1 ml-2 px-2 py-1 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-[11px] text-zinc-200 transition"
+        title="Saltar al resumen"
+      >
+        <SkipForward className="w-3 h-3" />
+        Saltar
+      </button>
     </div>
   );
 }
@@ -302,18 +438,12 @@ function Felt({
   state,
   winners,
   showdownDone,
-  equity,
-  outs,
-  unseenCount,
   onToggle,
   onFoldToggle,
 }: {
   state: GameState;
   winners: string[];
   showdownDone: boolean;
-  equity: Record<string, number>;
-  outs: Record<string, number>;
-  unseenCount: number;
   onToggle: (id: string) => void;
   onFoldToggle: (id: string) => void;
 }) {
@@ -342,10 +472,6 @@ function Felt({
             seat={seat}
             isWinner={winners.includes(seat.player.id)}
             showdownDone={showdownDone}
-            equity={equity[seat.player.id]}
-            outs={outs[seat.player.id]}
-            unseenCount={unseenCount}
-            community={state.community}
             onToggle={() => onToggle(seat.player.id)}
             onFoldToggle={() => onFoldToggle(seat.player.id)}
             style={{

@@ -1,20 +1,13 @@
 "use client";
 import { Crown, X, RotateCcw } from "lucide-react";
-import type { Card, Seat } from "@/lib/poker";
+import type { Seat } from "@/lib/poker";
 import { Avatar } from "@/components/players/Avatar";
 import { HoleCards } from "./HoleCards";
-import { EquityBadge } from "./EquityBadge";
-import { HandLabel } from "./HandLabel";
-import { OutsChip } from "./OutsChip";
 
 export function PlayerSeat({
   seat,
   isWinner,
   showdownDone,
-  equity,
-  outs,
-  unseenCount,
-  community,
   onToggle,
   onFoldToggle,
   style,
@@ -22,21 +15,10 @@ export function PlayerSeat({
   seat: Seat;
   isWinner: boolean;
   showdownDone: boolean;
-  equity?: number;
-  outs?: number;
-  unseenCount: number;
-  community: Card[];
   onToggle: () => void;
   onFoldToggle: () => void;
   style?: React.CSSProperties;
 }) {
-  const showEquity = !seat.folded && equity !== undefined;
-  const showOuts =
-    !seat.folded &&
-    community.length === 4 &&
-    (outs ?? 0) > 0 &&
-    !showdownDone;
-
   return (
     <div
       className="player-seat absolute flex flex-col items-center gap-1.5"
@@ -47,9 +29,6 @@ export function PlayerSeat({
           <Crown className="w-3 h-3" />
           Ganador
         </span>
-      ) : null}
-      {showEquity ? (
-        <EquityBadge value={equity!} highlight={isWinner} />
       ) : null}
       <div
         className={`relative ${seat.folded ? "opacity-40 grayscale" : ""} ${isWinner ? "drop-shadow-[0_10px_30px_rgba(252,211,77,0.35)]" : ""}`}
@@ -88,14 +67,6 @@ export function PlayerSeat({
           </button>
         ) : null}
       </div>
-      {!seat.folded ? (
-        <div className="flex items-center gap-1.5">
-          <HandLabel hole={seat.hole} community={community} />
-          {showOuts ? (
-            <OutsChip outs={outs!} unseenCount={unseenCount} />
-          ) : null}
-        </div>
-      ) : null}
     </div>
   );
 }
