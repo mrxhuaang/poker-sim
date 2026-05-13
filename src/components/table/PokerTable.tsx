@@ -1,7 +1,5 @@
 "use client";
 import { useMemo, useRef, useState } from "react";
-import gsap from "gsap";
-import { useGSAP } from "@gsap/react";
 import confetti from "canvas-confetti";
 import { Trophy } from "lucide-react";
 import type { GameState, Player } from "@/lib/poker";
@@ -36,42 +34,6 @@ export function PokerTable() {
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const { equity, outs, runMany } = useEquity(result ? null : state);
-
-  useGSAP(
-    () => {
-      if (!state) return;
-      gsap.from(".player-seat", {
-        y: -40,
-        opacity: 0,
-        duration: 0.6,
-        ease: "power3.out",
-        stagger: 0.07,
-      });
-      gsap.from(".hole-cards .playing-card", {
-        y: -260,
-        rotateZ: -18,
-        opacity: 0,
-        duration: 0.55,
-        ease: "power2.out",
-        stagger: 0.05,
-      });
-      gsap.from(".community-slot", {
-        y: -120,
-        opacity: 0,
-        duration: 0.5,
-        ease: "power2.out",
-        stagger: 0.08,
-      });
-    },
-    {
-      scope: rootRef,
-      dependencies: [
-        state?.seats.length,
-        state?.street,
-        state?.community.length,
-      ],
-    },
-  );
 
   function startDeal(selected: Player[]) {
     setResult(null);
@@ -258,6 +220,7 @@ export function PokerTable() {
     >
       <div className="flex-1 min-w-0 flex flex-col items-center gap-6">
         <Felt
+          key={state.dealId}
           state={state}
           winners={winnerIds}
           showdownDone={!!result || !!runs}

@@ -19,15 +19,34 @@ export function PlayingCard({
   size = "md",
   className = "",
   flipDelay = 0,
+  dealDelay = 0,
+  dealIn = true,
 }: {
   card?: Card;
   faceUp: boolean;
   size?: Size;
   className?: string;
   flipDelay?: number;
+  dealDelay?: number;
+  dealIn?: boolean;
 }) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const flipperRef = useRef<HTMLDivElement | null>(null);
+
+  useGSAP(
+    () => {
+      if (!wrapRef.current || !dealIn) return;
+      gsap.from(wrapRef.current, {
+        y: -220,
+        rotateZ: -15,
+        opacity: 0,
+        duration: 0.55,
+        ease: "power2.out",
+        delay: dealDelay,
+      });
+    },
+    { scope: wrapRef, dependencies: [] },
+  );
 
   useGSAP(
     () => {

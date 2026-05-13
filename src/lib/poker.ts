@@ -27,6 +27,7 @@ export type GameState = {
   burns: Card[];
   deck: Card[];
   street: Street;
+  dealId: string;
 };
 
 const RANKS: Rank[] = [
@@ -67,7 +68,14 @@ export function deal(players: Player[]): GameState {
     revealed: false,
     folded: false,
   }));
-  return { seats, community: [], burns: [], deck, street: "preflop" };
+  return {
+    seats,
+    community: [],
+    burns: [],
+    deck,
+    street: "preflop",
+    dealId: crypto.randomUUID(),
+  };
 }
 
 export function advance(state: GameState): GameState {
