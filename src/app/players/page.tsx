@@ -8,6 +8,7 @@ import { useStats } from "@/hooks/useStats";
 import { useHistory } from "@/hooks/useHistory";
 import { PlayerForm } from "@/components/players/PlayerForm";
 import { PlayerList } from "@/components/players/PlayerList";
+import { BorderGlow } from "@/components/ui/BorderGlow";
 
 export default function PlayersPage() {
   const { players, add, update, remove, hydrated } = usePlayers();
@@ -36,20 +37,46 @@ export default function PlayersPage() {
           </p>
         </div>
         {hydrated && canPlay ? (
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/90 hover:bg-emerald-400 text-emerald-950 font-medium text-sm transition"
-          >
-            Ir a la mesa
-            <ArrowRight className="w-4 h-4" />
+          <Link href="/" className="group block">
+            <BorderGlow
+              edgeSensitivity={32}
+              glowColor="152 62 50"
+              backgroundColor="rgba(6, 52, 40, 0.82)"
+              borderRadius={999}
+              glowRadius={18}
+              glowIntensity={1}
+              coneSpread={28}
+              animated={false}
+              colors={["#34d399", "#6ee7b7", "#2dd4bf"]}
+              fillOpacity={0.42}
+            >
+              <span className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-emerald-50 transition group-hover:text-white">
+                Ir a la mesa
+                <ArrowRight className="w-4 h-4" />
+              </span>
+            </BorderGlow>
           </Link>
         ) : null}
       </header>
-      <PlayerForm
-        editing={editing}
-        onSubmit={onSubmit}
-        onCancel={() => setEditing(null)}
-      />
+      <BorderGlow
+        className="w-full"
+        edgeSensitivity={24}
+        glowColor="210 50 48"
+        backgroundColor="rgba(10, 11, 16, 0.88)"
+        borderRadius={18}
+        glowRadius={26}
+        glowIntensity={0.92}
+        coneSpread={26}
+        animated={false}
+        colors={["#34d399", "#60a5fa", "#94a3b8"]}
+        fillOpacity={0.38}
+      >
+        <PlayerForm
+          editing={editing}
+          onSubmit={onSubmit}
+          onCancel={() => setEditing(null)}
+        />
+      </BorderGlow>
       {hydrated ? (
         <>
           <PlayerList
@@ -64,12 +91,24 @@ export default function PlayersPage() {
           />
           {canPlay ? (
             <div className="flex items-center justify-center pt-2">
-              <Link
-                href="/"
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-emerald-500/90 hover:bg-emerald-400 text-emerald-950 font-medium text-sm transition"
-              >
-                Ir a la mesa ({players.length} jugadores)
-                <ArrowRight className="w-4 h-4" />
+              <Link href="/" className="group block">
+                <BorderGlow
+                  edgeSensitivity={32}
+                  glowColor="152 62 50"
+                  backgroundColor="rgba(6, 52, 40, 0.82)"
+                  borderRadius={999}
+                  glowRadius={18}
+                  glowIntensity={1}
+                  coneSpread={28}
+                  animated={false}
+                  colors={["#34d399", "#6ee7b7", "#2dd4bf"]}
+                  fillOpacity={0.42}
+                >
+                  <span className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-emerald-50 transition group-hover:text-white">
+                    Ir a la mesa ({players.length} jugadores)
+                    <ArrowRight className="w-4 h-4" />
+                  </span>
+                </BorderGlow>
               </Link>
             </div>
           ) : players.length === 1 ? (

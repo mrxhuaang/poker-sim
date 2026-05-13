@@ -1,45 +1,46 @@
 "use client";
-import Link from "next/link";
+
 import { usePathname } from "next/navigation";
-import { Spade } from "lucide-react";
+import { BorderGlow } from "@/components/ui/BorderGlow";
+import { PillNav } from "@/components/nav/PillNav";
+
+const NAV_ITEMS = [
+  { href: "/host", label: "Crear sala" },
+  { href: "/join", label: "Unirse" },
+  { href: "/players", label: "Jugadores" },
+] as const;
 
 export function Nav() {
   const path = usePathname();
-  const links = [
-    { href: "/host", label: "Crear sala" },
-    { href: "/join", label: "Unirse" },
-    { href: "/players", label: "Jugadores" },
-  ];
+
   return (
-    <nav className="sticky top-0 z-30 backdrop-blur bg-black/30 border-b border-white/5">
-      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-        <Link
-          href="/"
-          className="flex items-center gap-2 text-zinc-100 font-medium tracking-tight"
+    <header className="sticky top-0 z-30 border-b border-white/[0.06] backdrop-blur-xl">
+      <div className="mx-auto max-w-6xl px-3 py-2.5 sm:px-4">
+        <BorderGlow
+          className="w-full !border-white/10"
+          edgeSensitivity={20}
+          glowColor="152 52 48"
+          backgroundColor="rgba(10, 11, 16, 0.82)"
+          borderRadius={999}
+          glowRadius={22}
+          glowIntensity={0.85}
+          coneSpread={28}
+          animated={false}
+          colors={["#34d399", "#6ee7b7", "#38bdf8", "#64748b"]}
+          fillOpacity={0.32}
         >
-          <Spade className="w-4 h-4 text-emerald-400" />
-          <span>Poker Sim</span>
-        </Link>
-        <ul className="flex items-center gap-1">
-          {links.map((l) => {
-            const active = path === l.href || path?.startsWith(l.href + "/");
-            return (
-              <li key={l.href}>
-                <Link
-                  href={l.href}
-                  className={`px-3 py-1.5 rounded-full text-sm transition ${
-                    active
-                      ? "bg-white/10 text-zinc-100"
-                      : "text-zinc-400 hover:text-zinc-100 hover:bg-white/5"
-                  }`}
-                >
-                  {l.label}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+          <div className="min-h-0 overflow-hidden rounded-[inherit] px-2 py-1.5 sm:px-3 sm:py-2">
+            <PillNav
+              logo="/logo.svg"
+              logoAlt="Showdown"
+              logoHref="/"
+              brandTitle="Showdown"
+              items={[...NAV_ITEMS]}
+              activePath={path}
+            />
+          </div>
+        </BorderGlow>
       </div>
-    </nav>
+    </header>
   );
 }

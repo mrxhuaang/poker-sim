@@ -42,6 +42,8 @@ export type RoomDoc = {
   result: Showdown | null;
   playback: { idx: number; total: number; community: Card[] } | null;
   runHighlight: string[];
+  theme?: string;
+  mode?: "presencial" | "normal" | "torneo";
 };
 
 export type HoleDoc = {
@@ -59,7 +61,10 @@ export function generateCode(len = 5): string {
   return out;
 }
 
-export async function createRoom(hostUid: string): Promise<string> {
+export async function createRoom(
+  hostUid: string,
+  opts?: { theme?: string; mode?: "presencial" | "normal" | "torneo" },
+): Promise<string> {
   const db = getDb();
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = generateCode();
@@ -74,11 +79,18 @@ export async function createRoom(hostUid: string): Promise<string> {
       result: null,
       playback: null,
       runHighlight: [],
+      theme: opts?.theme ?? "emerald",
+      mode: opts?.mode ?? "presencial",
     };
     await setDoc(ref, room);
     return code;
   }
   throw new Error("could not generate unique code");
+}
+
+export async function setRoomTheme(code: string, theme: string): Promise<void> {
+  const db = getDb();
+  await updateDoc(doc(db, "rooms", code), { theme });
 }
 
 export function subscribeRoom(

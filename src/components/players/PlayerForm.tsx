@@ -40,7 +40,7 @@ export function PlayerForm({
   return (
     <form
       onSubmit={submit}
-      className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-4 rounded-2xl bg-white/[0.03] ring-1 ring-white/10"
+      className="flex flex-col items-stretch gap-3 p-4 sm:flex-row sm:items-center"
     >
       <div className="flex items-center gap-3">
         <Avatar seed={seed || "_"} size={48} />

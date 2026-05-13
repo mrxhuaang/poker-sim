@@ -4,6 +4,7 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import type { Card } from "@/lib/poker";
 import { rankLabel, suitColor, suitGlyph } from "@/lib/poker";
+import { getCardBack, type CardBackId } from "@/lib/themes";
 
 type Size = "sm" | "md" | "lg";
 
@@ -21,6 +22,7 @@ export function PlayingCard({
   flipDelay = 0,
   dealDelay = 0,
   dealIn = true,
+  cardBack,
 }: {
   card?: Card;
   faceUp: boolean;
@@ -29,6 +31,7 @@ export function PlayingCard({
   flipDelay?: number;
   dealDelay?: number;
   dealIn?: boolean;
+  cardBack?: CardBackId;
 }) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const flipperRef = useRef<HTMLDivElement | null>(null);
@@ -40,7 +43,7 @@ export function PlayingCard({
         y: -220,
         rotateZ: -15,
         opacity: 0,
-        duration: 0.55,
+        duration: 0.6,
         ease: "power2.out",
         delay: dealDelay,
       });
@@ -53,8 +56,8 @@ export function PlayingCard({
       if (!flipperRef.current) return;
       gsap.to(flipperRef.current, {
         rotateY: faceUp ? 180 : 0,
-        duration: 0.7,
-        ease: "power3.inOut",
+        duration: 1.05,
+        ease: "expo.inOut",
         delay: flipDelay,
       });
     },
@@ -73,33 +76,73 @@ export function PlayingCard({
         className="flipper relative w-full h-full"
         style={{ transformStyle: "preserve-3d" }}
       >
-        <CardBack />
+        <CardBackView variant={cardBack} />
         <CardFront card={card} />
       </div>
     </div>
   );
 }
 
-function CardBack() {
+function CardBackView({ variant }: { variant?: CardBackId }) {
+  const back = getCardBack(variant);
+  const isLogo = back.id === "logo";
   return (
     <div
       className="absolute inset-0 rounded-xl border border-white/10 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden"
       style={{
         backfaceVisibility: "hidden",
         WebkitBackfaceVisibility: "hidden",
-        background:
-          "linear-gradient(135deg,#1a1f3a 0%,#0c1024 60%,#0a0d1c 100%)",
+        background: back.background,
       }}
     >
       <div
-        className="absolute inset-2 rounded-lg opacity-40"
-        style={{
-          backgroundImage:
-            "repeating-linear-gradient(45deg, rgba(255,255,255,0.08) 0 2px, transparent 2px 8px), repeating-linear-gradient(-45deg, rgba(255,255,255,0.06) 0 2px, transparent 2px 8px)",
-        }}
+        className="absolute inset-2 rounded-lg opacity-50"
+        style={{ backgroundImage: back.pattern }}
       />
       <div className="absolute inset-0 flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full border border-white/30" />
+        {isLogo ? (
+          <svg viewBox="0 0 48 48" className="w-2/3 h-2/3 opacity-90">
+            <defs>
+              <linearGradient id="cba" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#34d399" />
+                <stop offset="100%" stopColor="#0a2a20" />
+              </linearGradient>
+              <linearGradient id="cbb" x1="0" y1="1" x2="1" y2="0">
+                <stop offset="0%" stopColor="#fbbf24" />
+                <stop offset="100%" stopColor="#7c2d12" />
+              </linearGradient>
+            </defs>
+            <g transform="translate(24 24)">
+              <rect
+                x="-9"
+                y="-12"
+                width="18"
+                height="24"
+                rx="2.4"
+                transform="rotate(-18)"
+                fill="url(#cba)"
+                stroke="rgba(255,255,255,0.2)"
+                strokeWidth="1"
+              />
+              <rect
+                x="-9"
+                y="-12"
+                width="18"
+                height="24"
+                rx="2.4"
+                transform="rotate(18) translate(3 0)"
+                fill="url(#cbb)"
+                stroke="rgba(255,255,255,0.22)"
+                strokeWidth="1"
+              />
+            </g>
+          </svg>
+        ) : (
+          <div
+            className="w-8 h-8 rounded-full border"
+            style={{ borderColor: back.centerColor }}
+          />
+        )}
       </div>
     </div>
   );

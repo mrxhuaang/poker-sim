@@ -1,13 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  --background: #06070a;
+  --background: #07080c;
   --foreground: #f4f4f5;
+  --surface: rgba(255, 255, 255, 0.03);
+  --surface-strong: rgba(255, 255, 255, 0.06);
+  --border-soft: rgba(255, 255, 255, 0.08);
+  --accent: #34d399;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-strong: var(--surface-strong);
+  --color-accent: var(--accent);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -21,6 +28,48 @@ body {
 body {
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   letter-spacing: -0.005em;
+  background-image:
+    radial-gradient(
+      ellipse at 80% -10%,
+      rgba(52, 211, 153, 0.08) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at 0% 110%,
+      rgba(96, 165, 250, 0.06) 0%,
+      transparent 50%
+    );
+  background-attachment: fixed;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.elevate {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 20px 60px -25px rgba(0, 0, 0, 0.7);
+}
+
+.btn-press {
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    background 120ms ease;
+}
+.btn-press:active {
+  transform: translateY(1px);
 }
 
 /* Keep 3D transforms crisp on Safari */

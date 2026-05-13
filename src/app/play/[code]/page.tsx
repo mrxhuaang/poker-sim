@@ -1,13 +1,34 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { Crown, Eye, EyeOff, Flame, RotateCcw, Shuffle } from "lucide-react";
+import { Crown, Eye, EyeOff, Flame, RotateCcw, Shuffle, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useHole, useRoom, useLobby } from "@/hooks/useRoom";
+import { useCardBack } from "@/hooks/useCardBack";
 import { joinLobby, phoneSetSeatFlag } from "@/lib/rooms";
 import { randomSeed } from "@/lib/dicebear";
 import { Avatar } from "@/components/players/Avatar";
 import { PlayingCard } from "@/components/cards/PlayingCard";
+import { CardBackPicker } from "@/components/themes/CardBackPicker";
+import { BorderGlow } from "@/components/ui/BorderGlow";
+import { bestHand, categoryLabel } from "@/lib/handEval";
+import type { Card, Rank } from "@/lib/poker";
+
+const RANK_FULL: Record<Rank, string> = {
+  "2": "Doses",
+  "3": "Treses",
+  "4": "Cuatros",
+  "5": "Cincos",
+  "6": "Seises",
+  "7": "Sietes",
+  "8": "Ochos",
+  "9": "Nueves",
+  T: "Dieces",
+  J: "Jotas",
+  Q: "Reinas",
+  K: "Reyes",
+  A: "Ases",
+};
 
 export default function PlayPage() {
   const params = useParams<{ code: string }>();
@@ -99,37 +120,60 @@ function LobbyForm({ code, uid }: { code: string; uid: string | null }) {
         </p>
       </header>
 
-      <div className="flex flex-col items-center gap-3">
-        <Avatar seed={seed} size={120} />
-        <button
-          type="button"
-          onClick={() => setSeed(randomSeed())}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-xs text-zinc-200 transition"
-        >
-          <Shuffle className="w-3.5 h-3.5" />
-          Otro avatar
-        </button>
-      </div>
-
-      <input
-        type="text"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Tu apodo"
-        maxLength={20}
-        autoFocus
-        className="px-5 py-4 rounded-2xl bg-black/40 ring-1 ring-white/10 text-zinc-100 text-lg text-center outline-none focus:ring-emerald-400/40"
-      />
-
-      <button
-        type="submit"
-        disabled={!name.trim() || submitting}
-        className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-emerald-500/90 hover:bg-emerald-400 disabled:opacity-30 disabled:cursor-not-allowed text-emerald-950 font-medium transition"
+      <BorderGlow
+        className="w-full"
+        edgeSensitivity={26}
+        glowColor="152 68 48"
+        backgroundColor="rgba(8, 10, 16, 0.9)"
+        borderRadius={20}
+        glowRadius={30}
+        glowIntensity={1}
+        coneSpread={24}
+        animated={false}
+        colors={["#34d399", "#38bdf8", "#c4b5fd"]}
+        fillOpacity={0.45}
       >
-        Entrar a la mesa
-      </button>
+        <div className="flex flex-col gap-6 p-5">
+          <div className="flex flex-col items-center gap-3">
+            <Avatar seed={seed} size={120} />
+            <button
+              type="button"
+              onClick={() => setSeed(randomSeed())}
+              className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-xs text-zinc-200 ring-1 ring-white/10 transition hover:bg-white/10 btn-press"
+            >
+              <Shuffle className="w-3.5 h-3.5" />
+              Otro avatar
+            </button>
+          </div>
+
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Tu apodo"
+            maxLength={20}
+            autoFocus
+            className="rounded-2xl bg-black/40 px-5 py-4 text-center text-lg text-zinc-100 outline-none ring-1 ring-white/10 focus:ring-emerald-400/40"
+          />
+
+          <button
+            type="submit"
+            disabled={!name.trim() || submitting}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500/90 px-5 py-3 font-medium text-emerald-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-30 btn-press"
+          >
+            Entrar a la mesa
+          </button>
+        </div>
+      </BorderGlow>
     </form>
   );
+}
+
+function handLabel(hole: [Card, Card], community: Card[]): string | null {
+  const all: Card[] = [...hole, ...community];
+  if (all.length >= 5) return categoryLabel(bestHand(all));
+  if (hole[0].rank === hole[1].rank) return `Par de ${RANK_FULL[hole[0].rank]}`;
+  return null;
 }
 
 function PhoneGameView({
@@ -141,21 +185,46 @@ function PhoneGameView({
   code: string;
   mySeat: NonNullable<NonNullable<ReturnType<typeof useRoom>>["state"]>["seats"][number];
   room: NonNullable<ReturnType<typeof useRoom>>;
-  hole?: [import("@/lib/poker").Card, import("@/lib/poker").Card];
+  hole?: [Card, Card];
 }) {
   const winners = room.result?.winners ?? [];
   const isWinner = winners.includes(mySeat.id);
   const seats = room.state!.seats;
   const activeCount = seats.filter((s) => !s.folded).length;
   const [revealing, setRevealing] = useState(false);
+  const { cardBack, setCardBack } = useCardBack();
+  const [folding, setFolding] = useState(false);
+  const [showCardBackPicker, setShowCardBackPicker] = useState(false);
 
   useEffect(() => {
     if (room.result) setRevealing(true);
   }, [room.result]);
 
+  const label = hole ? handLabel(hole, room.state!.community) : null;
+
+  async function onFoldToggle() {
+    if (folding) return;
+    setFolding(true);
+    try {
+      await phoneSetSeatFlag(code, mySeat.id, "folded", !mySeat.folded);
+    } catch {
+      /* ignore */
+    } finally {
+      setFolding(false);
+    }
+  }
+
+  async function onRevealToggle() {
+    try {
+      await phoneSetSeatFlag(code, mySeat.id, "revealed", !mySeat.revealed);
+    } catch {
+      /* ignore */
+    }
+  }
+
   return (
     <div className="w-full max-w-md mx-auto px-4 py-6 flex flex-col gap-5">
-      <header className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.03] ring-1 ring-white/10">
+      <header className="flex items-center justify-between p-3 rounded-2xl glass elevate">
         <div className="flex items-center gap-2">
           <Avatar seed={mySeat.seed} size={36} />
           <div className="flex flex-col">
@@ -188,10 +257,25 @@ function PhoneGameView({
       ) : null}
 
       <section>
-        <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">
-          Tus cartas
-        </span>
-        <div className="mt-2 flex items-center gap-3 justify-center p-4 rounded-2xl bg-white/[0.02] ring-1 ring-white/5">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+            Tus cartas
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowCardBackPicker((v) => !v)}
+            className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 hover:text-zinc-200 transition inline-flex items-center gap-1"
+          >
+            <Sparkles className="w-3 h-3" />
+            Dorso
+          </button>
+        </div>
+        {showCardBackPicker ? (
+          <div className="mt-2">
+            <CardBackPicker value={cardBack} onChange={setCardBack} />
+          </div>
+        ) : null}
+        <div className="mt-2 flex items-center gap-3 justify-center p-4 rounded-2xl glass">
           {hole ? (
             <>
               <PlayingCard
@@ -199,25 +283,32 @@ function PhoneGameView({
                 faceUp={mySeat.revealed || revealing}
                 size="lg"
                 dealIn={false}
+                cardBack={cardBack}
               />
               <PlayingCard
                 card={hole[1]}
                 faceUp={mySeat.revealed || revealing}
                 size="lg"
                 dealIn={false}
+                cardBack={cardBack}
               />
             </>
           ) : (
             <div className="text-xs text-zinc-500 py-8">Sin cartas.</div>
           )}
         </div>
+        {label && hole ? (
+          <div className="mt-2 flex items-center justify-center">
+            <span className="px-3 py-1 rounded-full bg-emerald-500/10 ring-1 ring-emerald-400/30 text-emerald-200 text-xs">
+              {label}
+            </span>
+          </div>
+        ) : null}
         <div className="mt-3 flex items-center justify-center gap-2 flex-wrap">
           <button
             type="button"
-            onClick={() =>
-              phoneSetSeatFlag(code, mySeat.id, "revealed", !mySeat.revealed).catch(() => {})
-            }
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-100 text-sm transition"
+            onClick={onRevealToggle}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-100 text-sm transition btn-press"
           >
             {mySeat.revealed ? (
               <>
@@ -232,14 +323,13 @@ function PhoneGameView({
           {!room.result ? (
             <button
               type="button"
-              onClick={() =>
-                phoneSetSeatFlag(code, mySeat.id, "folded", !mySeat.folded).catch(() => {})
-              }
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ring-1 text-sm font-medium transition ${
+              onClick={onFoldToggle}
+              disabled={folding}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ring-1 text-sm font-medium transition btn-press ${
                 mySeat.folded
                   ? "bg-white/5 ring-white/10 text-zinc-200 hover:bg-white/10"
                   : "bg-rose-500/90 ring-rose-400/40 text-rose-950 hover:bg-rose-400"
-              }`}
+              } ${folding ? "opacity-60" : ""}`}
             >
               {mySeat.folded ? (
                 <>
@@ -259,7 +349,7 @@ function PhoneGameView({
         <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">
           Comunitarias ({room.state!.community.length}/5)
         </span>
-        <div className="mt-2 flex items-center gap-2 overflow-x-auto p-3 rounded-2xl bg-white/[0.02] ring-1 ring-white/5">
+        <div className="mt-2 flex items-center gap-2 overflow-x-auto p-3 rounded-2xl glass">
           {room.state!.community.length === 0 ? (
             <span className="text-xs text-zinc-500 py-4 mx-auto">
               Pre-flop. Sin cartas comunitarias.
@@ -272,6 +362,7 @@ function PhoneGameView({
                 faceUp
                 size="md"
                 dealIn={false}
+                cardBack={cardBack}
               />
             ))
           )}

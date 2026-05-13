@@ -2,6 +2,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Smartphone } from "lucide-react";
+import { BorderGlow } from "@/components/ui/BorderGlow";
 
 function JoinInner() {
   const router = useRouter();
@@ -27,27 +28,41 @@ function JoinInner() {
       <p className="text-sm text-zinc-400 text-center">
         Ingresa el código que aparece en la pantalla grande.
       </p>
-      <form onSubmit={submit} className="w-full flex flex-col gap-3">
-        <input
-          type="text"
-          value={code}
-          onChange={(e) =>
-            setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))
-          }
-          placeholder="ABCD2"
-          maxLength={6}
-          autoFocus
-          className="w-full px-5 py-4 rounded-2xl bg-black/40 ring-1 ring-white/10 text-zinc-100 text-2xl text-center tracking-[0.4em] uppercase outline-none focus:ring-emerald-400/40"
-        />
-        <button
-          type="submit"
-          disabled={code.length < 4}
-          className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-emerald-500/90 hover:bg-emerald-400 disabled:opacity-30 disabled:cursor-not-allowed text-emerald-950 font-medium transition"
-        >
-          Entrar
-          <ArrowRight className="w-4 h-4" />
-        </button>
-      </form>
+      <BorderGlow
+        className="w-full"
+        edgeSensitivity={26}
+        glowColor="152 70 46"
+        backgroundColor="rgba(10, 12, 18, 0.92)"
+        borderRadius={22}
+        glowRadius={32}
+        glowIntensity={1}
+        coneSpread={24}
+        animated={false}
+        colors={["#34d399", "#38bdf8", "#a78bfa"]}
+        fillOpacity={0.48}
+      >
+        <form onSubmit={submit} className="flex w-full flex-col gap-3 p-5">
+          <input
+            type="text"
+            value={code}
+            onChange={(e) =>
+              setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))
+            }
+            placeholder="ABCD2"
+            maxLength={6}
+            autoFocus
+            className="w-full rounded-2xl bg-black/45 px-5 py-4 text-center text-2xl uppercase tracking-[0.4em] text-zinc-100 outline-none ring-1 ring-white/10 focus:ring-emerald-400/40"
+          />
+          <button
+            type="submit"
+            disabled={code.length < 4}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500/90 px-5 py-3 font-medium text-emerald-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            Entrar
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </form>
+      </BorderGlow>
     </div>
   );
 }

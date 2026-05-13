@@ -6,6 +6,7 @@ import type { Card, GameState, Player } from "@/lib/poker";
 import {
   gameToPublic,
   patchRoom,
+  subscribeRoom,
   writeDealedRoom,
 } from "@/lib/rooms";
 import { advance, deal } from "@/lib/poker";
@@ -28,6 +29,7 @@ import { RunResults } from "./RunResults";
 import { StatsPanel } from "@/components/StatsPanel";
 import { EquityPanel } from "@/components/EquityPanel";
 import { Avatar } from "@/components/players/Avatar";
+import { getTableTheme, type TableThemeId } from "@/lib/themes";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
@@ -36,12 +38,14 @@ function sleep(ms: number): Promise<void> {
 export function PokerTable({
   sync,
   playersOverride,
+  theme,
 }: {
   sync?: {
     roomCode: string;
     ownersMap: Record<string, string | null>;
   };
   playersOverride?: Player[];
+  theme?: TableThemeId;
 } = {}) {
   const local = usePlayers();
   const players = playersOverride ?? local.players;
@@ -63,6 +67,32 @@ export function PokerTable({
   const { equity, outs, runMany } = useEquity(
     result || playback ? null : state,
   );
+
+  // Merge inbound fold/reveal flags from phones via Firestore.
+  // Phones write to state.seats directly; without this, the host's own
+  // write-back would clobber those flags on the next state change.
+  useEffect(() => {
+    if (!sync) return;
+    const unsub = subscribeRoom(sync.roomCode, (room) => {
+      const incoming = room?.state?.seats;
+      if (!incoming) return;
+      setState((prev) => {
+        if (!prev) return prev;
+        let dirty = false;
+        const seats = prev.seats.map((s) => {
+          const r = incoming.find((rs) => rs.id === s.player.id);
+          if (!r) return s;
+          if (r.folded !== s.folded || r.revealed !== s.revealed) {
+            dirty = true;
+            return { ...s, folded: r.folded, revealed: r.revealed };
+          }
+          return s;
+        });
+        return dirty ? { ...prev, seats } : prev;
+      });
+    });
+    return () => unsub();
+  }, [sync]);
 
   const lastDealIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -362,6 +392,7 @@ export function PokerTable({
           showdownDone={!!result || !!runs}
           onToggle={toggleSeat}
           onFoldToggle={toggleFold}
+          theme={theme}
         />
         {result ? (
           <WinnerBanner
@@ -542,21 +573,24 @@ function Felt({
   showdownDone,
   onToggle,
   onFoldToggle,
+  theme,
 }: {
   state: GameState;
   winners: string[];
   showdownDone: boolean;
   onToggle: (id: string) => void;
   onFoldToggle: (id: string) => void;
+  theme?: TableThemeId;
 }) {
   const n = state.seats.length;
+  const t = getTableTheme(theme);
   return (
     <div className="relative w-full max-w-4xl aspect-[16/10] my-2">
       <div
-        className="absolute inset-0 rounded-[50%] ring-1 ring-white/10 shadow-[inset_0_0_120px_rgba(0,0,0,0.6),0_30px_80px_-30px_rgba(0,0,0,0.7)]"
+        className="absolute inset-0 rounded-[50%] shadow-[inset_0_0_120px_rgba(0,0,0,0.6),0_30px_80px_-30px_rgba(0,0,0,0.7)]"
         style={{
-          background:
-            "radial-gradient(ellipse at center, #0f3d2e 0%, #0a2a20 55%, #06140f 100%)",
+          background: t.feltGradient,
+          boxShadow: `inset 0 0 120px rgba(0,0,0,0.6), 0 30px 80px -30px rgba(0,0,0,0.7), 0 0 0 1px ${t.ringColor}`,
         }}
       />
       <div className="absolute inset-0 flex items-center justify-center">

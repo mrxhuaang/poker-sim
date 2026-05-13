@@ -14,8 +14,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Poker Sim",
-  description: "Simulador visual de Texas Hold'em sin apuestas",
+  title: "Showdown — Poker multi-dispositivo",
+  description:
+    "Plataforma de Texas Hold'em multi-dispositivo. Modo presencial, sala normal y torneos.",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({
