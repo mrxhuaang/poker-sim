@@ -6,27 +6,30 @@ import {
   startHand,
   computeSidePots,
 } from "@/lib/betting";
-import type { NormalRoomDoc, PendingAction } from "@/lib/normalRooms";
+import type { NormalRoomDoc, PendingAction, NormalLobbyPlayer } from "@/lib/normalRooms";
 import {
   lobbyToSeats,
   patchNormalRoom,
+  kickFromLobby,
   writeNormalDealt,
 } from "@/lib/normalRooms";
 import { showdown } from "@/lib/handEval";
 import type { Card } from "@/lib/poker";
-import type { LobbyPlayer } from "@/lib/rooms";
 
 type UseNormalGameReturn = {
   gameState: NormalGameState | null;
   startNewHand: () => Promise<void>;
   resolveShowdown: () => Promise<void>;
+  adjustPlayerChips: (uid: string, delta: number) => void;
+  setAllChips: (amount: number) => void;
+  kickPlayer: (uid: string) => Promise<void>;
   isProcessing: boolean;
 };
 
 export function useNormalGame(
   code: string | null,
   room: NormalRoomDoc | null,
-  lobby: LobbyPlayer[],
+  lobby: NormalLobbyPlayer[],
   uid: string | null,
   holeCards: Record<string, [Card, Card]>,
 ): UseNormalGameReturn {
@@ -136,9 +139,20 @@ export function useNormalGame(
       timeBankInit: 60_000,
     };
 
+    // Apply pending rebuys from approved requests
+    const pendingRebuys = room?.pendingRebuys ?? {};
+    const seatsWithRebuys = seats.map((s) => {
+      const rebuy = pendingRebuys[s.id];
+      if (rebuy && rebuy > 0) return { ...s, chips: s.chips + rebuy, status: "active" as const };
+      return s;
+    });
+    if (Object.keys(pendingRebuys).length > 0) {
+      patchNormalRoom(code, { pendingRebuys: {} }).catch(() => {});
+    }
+
     handNumRef.current += 1;
     const newState = startHand(
-      seats,
+      seatsWithRebuys,
       config,
       handNumRef.current,
       dealerIdxRef.current,
@@ -236,7 +250,68 @@ export function useNormalGame(
     });
   }, [gameState, code, holeCards]);
 
-  return { gameState, startNewHand, resolveShowdown, isProcessing };
+  const adjustPlayerChips = useCallback(
+    (playerId: string, delta: number) => {
+      if (!code) return;
+      setGameState((prev) => {
+        if (!prev) return prev;
+        const seats = prev.seats.map((s) =>
+          s.id === playerId
+            ? { ...s, chips: Math.max(0, s.chips + delta) }
+            : s,
+        );
+        const next = { ...prev, seats };
+        patchNormalRoom(code, { state: toPublicState(next) }).catch(() => {});
+        return next;
+      });
+    },
+    [code],
+  );
+
+  const setAllChips = useCallback(
+    (amount: number) => {
+      if (!code) return;
+      setGameState((prev) => {
+        if (!prev) return prev;
+        const seats = prev.seats.map((s) =>
+          s.status !== "out" && s.status !== "sitting-out"
+            ? { ...s, chips: amount }
+            : s,
+        );
+        const next = { ...prev, seats };
+        patchNormalRoom(code, { state: toPublicState(next) }).catch(() => {});
+        return next;
+      });
+    },
+    [code],
+  );
+
+  const kickPlayer = useCallback(
+    async (playerId: string) => {
+      if (!code) return;
+      setGameState((prev) => {
+        if (!prev) return prev;
+        const seats = prev.seats.map((s) =>
+          s.id === playerId ? { ...s, status: "out" as const } : s,
+        );
+        const next = { ...prev, seats };
+        patchNormalRoom(code, { state: toPublicState(next) }).catch(() => {});
+        return next;
+      });
+      await kickFromLobby(code, playerId).catch(() => {});
+    },
+    [code],
+  );
+
+  return {
+    gameState,
+    startNewHand,
+    resolveShowdown,
+    adjustPlayerChips,
+    setAllChips,
+    kickPlayer,
+    isProcessing,
+  };
 }
 
 function toPublicState(gs: NormalGameState) {

@@ -14,8 +14,9 @@ import {
   Settings,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useNormalLobby, useNormalRoom } from "@/hooks/useNormalRoom";
+import { useNormalLobby, useNormalRoom, useStackRequests } from "@/hooks/useNormalRoom";
 import { useNormalGame } from "@/hooks/useNormalGame";
+import { StackRequestPanel } from "@/components/lobby/StackRequestPanel";
 import {
   createNormalRoom,
   setNormalRoomTheme,
@@ -73,8 +74,16 @@ export default function HostTorneoPage() {
 
   const room = useNormalRoom(code);
   const lobby = useNormalLobby(code);
-  const { gameState, startNewHand, resolveShowdown, isProcessing } =
-    useNormalGame(code, room ?? null, lobby, uid, holeCards);
+  const requests = useStackRequests(code);
+  const {
+    gameState,
+    startNewHand,
+    resolveShowdown,
+    adjustPlayerChips,
+    setAllChips,
+    kickPlayer,
+    isProcessing,
+  } = useNormalGame(code, room ?? null, lobby, uid, holeCards);
 
   useEffect(() => {
     if (loading || !uid || code || creating) return;
@@ -263,6 +272,21 @@ export default function HostTorneoPage() {
             }}
           />
         </div>
+      )}
+
+      {/* Stack management */}
+      {code && (
+        <StackRequestPanel
+          code={code}
+          requests={requests}
+          lobby={lobby}
+          gameSeats={gameState?.seats ?? null}
+          config={config}
+          locked={room?.locked ?? false}
+          onAdjustChips={adjustPlayerChips}
+          onSetAllChips={setAllChips}
+          onKick={kickPlayer}
+        />
       )}
 
       {/* Blind structure */}

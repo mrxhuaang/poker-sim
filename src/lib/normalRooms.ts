@@ -21,7 +21,6 @@ import type {
 } from "./betting";
 import type { TournamentState } from "./tournament";
 import type { Showdown } from "./handEval";
-import type { LobbyPlayer } from "./rooms";
 import { generateCode } from "./rooms";
 
 export type PendingAction = {
@@ -40,6 +39,15 @@ export type NormalHoleDoc = {
   cards: [Card, Card];
 };
 
+export type NormalLobbyPlayer = {
+  uid: string;
+  name: string;
+  seed: string;
+  joinedAt: number;
+  chips: number;
+  sittingOut: boolean;
+};
+
 export type NormalRoomDoc = {
   code: string;
   hostUid: string;
@@ -52,6 +60,8 @@ export type NormalRoomDoc = {
   result: (Showdown & { chips: Record<string, number> }) | null;
   theme: string;
   tournament: TournamentState | null;
+  locked: boolean;
+  pendingRebuys: Record<string, number>;
 };
 
 export async function createNormalRoom(
@@ -78,6 +88,8 @@ export async function createNormalRoom(
       pendingAction: null,
       result: null,
       theme,
+      locked: false,
+      pendingRebuys: {},
       tournament:
         config.mode === "torneo"
           ? {
@@ -111,7 +123,7 @@ export function subscribeNormalRoom(
 
 export function subscribeNormalLobby(
   code: string,
-  cb: (players: LobbyPlayer[]) => void,
+  cb: (players: NormalLobbyPlayer[]) => void,
 ): () => void {
   const db = getDb();
   const q = query(
@@ -120,24 +132,64 @@ export function subscribeNormalLobby(
   );
   return onSnapshot(
     q,
-    (snap) => cb(snap.docs.map((d) => d.data() as LobbyPlayer)),
+    (snap) => cb(snap.docs.map((d) => d.data() as NormalLobbyPlayer)),
     () => cb([]),
   );
 }
 
+export async function approveJoin(
+  code: string,
+  uid: string,
+  name: string,
+  seed: string,
+  chips: number,
+): Promise<void> {
+  const db = getDb();
+  const player: NormalLobbyPlayer = {
+    uid,
+    name,
+    seed,
+    joinedAt: Date.now(),
+    chips,
+    sittingOut: false,
+  };
+  await setDoc(doc(db, "normalRooms", code, "lobby", uid), player);
+}
+
+export async function patchLobbyPlayer(
+  code: string,
+  uid: string,
+  patch: Partial<NormalLobbyPlayer>,
+): Promise<void> {
+  const db = getDb();
+  await updateDoc(doc(db, "normalRooms", code, "lobby", uid), patch as Record<string, unknown>);
+}
+
+export async function kickFromLobby(
+  code: string,
+  uid: string,
+): Promise<void> {
+  const db = getDb();
+  const { deleteDoc: _del } = await import("firebase/firestore");
+  await _del(doc(db, "normalRooms", code, "lobby", uid));
+}
+
+export async function setTableLocked(
+  code: string,
+  locked: boolean,
+): Promise<void> {
+  const db = getDb();
+  await updateDoc(doc(db, "normalRooms", code), { locked });
+}
+
+// Legacy — kept for presencial mode compatibility
 export async function joinNormalLobby(
   code: string,
   uid: string,
   name: string,
   seed: string,
 ): Promise<void> {
-  const db = getDb();
-  await setDoc(doc(db, "normalRooms", code, "lobby", uid), {
-    uid,
-    name,
-    seed,
-    joinedAt: Date.now(),
-  });
+  await approveJoin(code, uid, name, seed, 0);
 }
 
 export function subscribeNormalHole(
@@ -210,7 +262,7 @@ export async function setNormalRoomTheme(
 }
 
 export function lobbyToSeats(
-  lobby: LobbyPlayer[],
+  lobby: NormalLobbyPlayer[],
   config: RoomConfig,
   ownerMap: Record<string, string | null>,
 ): NormalSeat[] {
@@ -219,11 +271,11 @@ export function lobbyToSeats(
     name: p.name,
     seed: p.seed,
     ownerUid: ownerMap[p.uid] ?? null,
-    chips: config.startingStack,
+    chips: p.chips > 0 ? p.chips : config.startingStack,
     bet: 0,
     totalBet: 0,
     revealed: false,
-    status: "active" as const,
+    status: p.sittingOut ? ("sitting-out" as const) : ("active" as const),
     timeBank: config.timeBankInit,
     turnDeadline: null,
   }));

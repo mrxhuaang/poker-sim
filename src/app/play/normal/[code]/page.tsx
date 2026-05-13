@@ -1,77 +1,86 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { Trophy } from "lucide-react";
+import { Trophy, Clock, RefreshCw } from "lucide-react";
 import { PlayingCard } from "@/components/cards/PlayingCard";
 import { BettingControls } from "@/components/betting/BettingControls";
 import { PotDisplay } from "@/components/betting/PotDisplay";
 import { TurnTimer } from "@/components/betting/TurnTimer";
 import { Avatar } from "@/components/players/Avatar";
+import { JoinWithStack } from "@/components/lobby/JoinWithStack";
 import { useAuth } from "@/hooks/useAuth";
-import { useNormalRoom, useNormalLobby, useNormalHole } from "@/hooks/useNormalRoom";
-import { joinNormalLobby, postPlayerAction } from "@/lib/normalRooms";
+import { useNormalRoom, useNormalLobby } from "@/hooks/useNormalRoom";
+import { useNormalHole } from "@/hooks/useNormalRoom";
+import {
+  postPlayerAction,
+  patchLobbyPlayer,
+} from "@/lib/normalRooms";
+import {
+  submitStackRequest,
+  subscribeMyStackRequest,
+  dismissStackRequest,
+  type StackRequest,
+} from "@/lib/stackRequests";
 import { formatChips } from "@/lib/betting";
 import { getTableTheme } from "@/lib/themes";
 import type { TableThemeId } from "@/lib/themes";
 import type { BettingAction } from "@/lib/betting";
 import { CATEGORY_LABEL } from "@/lib/handEval";
 
-function NameEntry({ onJoin }: { onJoin: (name: string) => void }) {
-  const [name, setName] = useState("");
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (name.trim()) onJoin(name.trim());
-      }}
-      className="flex flex-col items-center gap-4 p-6"
-    >
-      <h2 className="text-lg font-semibold text-zinc-100">Únete a la sala</h2>
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Tu nombre"
-        maxLength={20}
-        autoFocus
-        className="px-4 py-2.5 rounded-xl bg-black/40 ring-1 ring-white/10 text-zinc-100 text-sm outline-none focus:ring-emerald-400/40 w-full max-w-xs"
-      />
-      <button
-        type="submit"
-        disabled={!name.trim()}
-        className="px-6 py-2.5 rounded-full bg-emerald-500/90 hover:bg-emerald-400 disabled:opacity-30 text-emerald-950 font-medium text-sm btn-press transition"
-      >
-        Unirse
-      </button>
-    </form>
-  );
-}
-
 export default function PlayNormalPage() {
   const params = useParams<{ code: string }>();
   const code = params.code?.toUpperCase() ?? null;
   const { uid, loading } = useAuth();
-  const [joined, setJoined] = useState(false);
   const mySeed = useRef(Math.random().toString(36).slice(2));
+
+  const [myRequest, setMyRequest] = useState<StackRequest | null | undefined>(
+    undefined,
+  );
 
   const room = useNormalRoom(code);
   const lobby = useNormalLobby(code);
   const hole = useNormalHole(code, uid);
 
+  // Subscribe to own stack request status
+  useEffect(() => {
+    if (!code || !uid) return;
+    return subscribeMyStackRequest(code, uid, setMyRequest);
+  }, [code, uid]);
+
   const gs = room?.state ?? null;
   const config = room?.config;
   const theme = (room?.theme as TableThemeId) ?? "emerald";
   const t = getTableTheme(theme);
+  const locked = room?.locked ?? false;
 
-  // Already in lobby
-  useEffect(() => {
-    if (!uid || !lobby.length) return;
-    if (lobby.some((p) => p.uid === uid)) setJoined(true);
-  }, [uid, lobby]);
+  const inLobby = uid ? lobby.some((p) => p.uid === uid) : false;
+  const myLobbyEntry = uid ? lobby.find((p) => p.uid === uid) : null;
+  const mySeat = gs?.seats.find((s) => s.id === uid) ?? null;
+  const isMyTurn = !!(gs && gs.betting.toActId === uid);
+  const result = room?.result;
 
-  async function handleJoin(name: string) {
+  async function handleJoinRequest(name: string, stack: number) {
     if (!uid || !code) return;
-    await joinNormalLobby(code, uid, name, mySeed.current);
-    setJoined(true);
+    await submitStackRequest(code, {
+      uid,
+      name,
+      seed: mySeed.current,
+      requestedStack: stack,
+      type: "join",
+      ts: Date.now(),
+    });
+  }
+
+  async function handleRebuyRequest(stack: number) {
+    if (!uid || !code || !myLobbyEntry) return;
+    await submitStackRequest(code, {
+      uid,
+      name: myLobbyEntry.name,
+      seed: myLobbyEntry.seed,
+      requestedStack: stack,
+      type: "rebuy",
+      ts: Date.now(),
+    });
   }
 
   async function handleAction(action: BettingAction, amount?: number) {
@@ -79,12 +88,24 @@ export default function PlayNormalPage() {
     await postPlayerAction(code, uid, action, amount);
   }
 
+  async function handleToggleSitOut() {
+    if (!uid || !code || !myLobbyEntry) return;
+    await patchLobbyPlayer(code, uid, {
+      sittingOut: !myLobbyEntry.sittingOut,
+    });
+  }
+
+  async function handleRetry() {
+    if (!uid || !code) return;
+    await dismissStackRequest(code, uid);
+    setMyRequest(null);
+  }
+
   if (loading || room === undefined) {
     return (
       <div className="p-8 text-center text-zinc-500 text-sm">Conectando…</div>
     );
   }
-
   if (!room) {
     return (
       <div className="p-8 text-center text-zinc-500 text-sm">
@@ -93,17 +114,66 @@ export default function PlayNormalPage() {
     );
   }
 
-  if (!joined) {
+  // ── Not in lobby ──────────────────────────────────────────────────
+  if (!inLobby) {
+    // Pending
+    if (myRequest?.status === "pending") {
+      return (
+        <div className="w-full max-w-sm mx-auto py-16 px-4 flex flex-col items-center gap-4">
+          <Clock className="w-10 h-10 text-amber-300 animate-pulse" />
+          <p className="text-zinc-100 font-medium">Solicitud enviada</p>
+          <p className="text-xs text-zinc-500 text-center">
+            Esperando que el dueño de la sala apruebe tu entrada con{" "}
+            <span className="text-zinc-300 tabular-nums">
+              {formatChips(myRequest.requestedStack)}
+            </span>{" "}
+            fichas.
+          </p>
+        </div>
+      );
+    }
+
+    // Rejected
+    if (myRequest?.status === "rejected") {
+      return (
+        <div className="w-full max-w-sm mx-auto py-16 px-4 flex flex-col items-center gap-4">
+          <div className="p-4 rounded-2xl bg-rose-500/10 ring-1 ring-rose-400/30 text-center">
+            <p className="text-rose-200 font-medium text-sm">
+              Solicitud rechazada
+            </p>
+            {myRequest.rejectionReason && (
+              <p className="text-xs text-rose-300/70 mt-1">
+                {myRequest.rejectionReason}
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={handleRetry}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/10 ring-1 ring-white/10 text-zinc-200 text-sm hover:bg-white/15 transition"
+          >
+            <RefreshCw className="w-4 h-4" /> Intentar de nuevo
+          </button>
+        </div>
+      );
+    }
+
+    // Join form (no request or request was dismissed)
     return (
-      <div className="w-full max-w-sm mx-auto py-16">
-        <NameEntry onJoin={handleJoin} />
+      <div className="w-full max-w-sm mx-auto py-10 px-4">
+        <JoinWithStack
+          suggestedStack={config?.startingStack ?? 1000}
+          locked={locked}
+          onSubmit={handleJoinRequest}
+        />
       </div>
     );
   }
 
-  const mySeat = gs?.seats.find((s) => s.id === uid) ?? null;
-  const isMyTurn = !!(gs && gs.betting.toActId === uid);
-  const result = room.result;
+  // ── In lobby ──────────────────────────────────────────────────────
+  const isOut = mySeat?.status === "out";
+  const needsRebuy = isOut && !myRequest;
+  const rebuyPending = myRequest?.status === "pending" && myRequest.type === "rebuy";
 
   return (
     <div className="w-full max-w-lg mx-auto px-4 py-6 flex flex-col gap-4">
@@ -142,7 +212,7 @@ export default function PlayNormalPage() {
           </div>
         </div>
       ) : (
-        <div className="py-10 text-center text-zinc-500 text-sm">
+        <div className="py-8 text-center text-zinc-500 text-sm glass rounded-2xl">
           Esperando que el host reparta…
         </div>
       )}
@@ -164,7 +234,7 @@ export default function PlayNormalPage() {
             </>
           )}
         </div>
-        {mySeat && (
+        {mySeat && !isOut && (
           <div className="flex items-center gap-3 text-sm">
             <span className="text-zinc-400">{mySeat.name}</span>
             <span className="tabular-nums font-semibold text-emerald-300">
@@ -191,10 +261,24 @@ export default function PlayNormalPage() {
           {result.winners.includes(uid ?? "") && (
             <Trophy className="w-4 h-4 text-amber-300" />
           )}
-          {result.winners.includes(uid ?? "")
-            ? "¡Ganaste!"
-            : "Mano terminada"}{" "}
+          {result.winners.includes(uid ?? "") ? "¡Ganaste!" : "Mano terminada"}{" "}
           — {CATEGORY_LABEL[result.category]}
+        </div>
+      )}
+
+      {/* Rebuy prompt */}
+      {needsRebuy && (
+        <JoinWithStack
+          defaultName={myLobbyEntry?.name ?? ""}
+          suggestedStack={config?.startingStack ?? 1000}
+          mode="rebuy"
+          onSubmit={async (_, stack) => handleRebuyRequest(stack)}
+        />
+      )}
+      {rebuyPending && (
+        <div className="px-4 py-3 rounded-2xl glass ring-1 ring-amber-300/20 text-xs text-amber-200 text-center flex items-center justify-center gap-2">
+          <Clock className="w-3.5 h-3.5 animate-pulse" />
+          Rebuy pendiente · {formatChips(myRequest!.requestedStack)} fichas
         </div>
       )}
 
@@ -277,8 +361,37 @@ export default function PlayNormalPage() {
         </div>
       )}
 
+      {/* Sit-out toggle */}
+      {myLobbyEntry && !isOut && (
+        <div className="flex items-center justify-between px-4 py-3 rounded-2xl glass ring-1 ring-white/8">
+          <div>
+            <p className="text-sm text-zinc-200">
+              {myLobbyEntry.sittingOut
+                ? "Estás sentado/a fuera"
+                : "Participando"}
+            </p>
+            <p className="text-xs text-zinc-500 mt-0.5">
+              {myLobbyEntry.sittingOut
+                ? "Vuelves en la próxima mano"
+                : "Activo/a en la mesa"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleToggleSitOut}
+            className={`px-3 py-1.5 rounded-full text-xs ring-1 transition btn-press ${
+              myLobbyEntry.sittingOut
+                ? "bg-emerald-500/20 ring-emerald-400/30 text-emerald-200 hover:bg-emerald-500/30"
+                : "glass ring-white/10 text-zinc-400 hover:bg-white/10"
+            }`}
+          >
+            {myLobbyEntry.sittingOut ? "Volver a jugar" : "Sentar fuera"}
+          </button>
+        </div>
+      )}
+
       {/* Waiting lobby */}
-      {!gs && joined && (
+      {!gs && inLobby && (
         <div className="p-4 rounded-2xl glass text-center">
           <p className="text-xs text-zinc-400">
             En sala · {lobby.length} jugadores
