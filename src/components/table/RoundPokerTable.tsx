@@ -213,10 +213,11 @@ export function RoundPokerTable({
         const bx = pos.x + (dx_center / dist) * betDist;
         const by = pos.y + (dy_center / dist) * (betDist * 0.75);
 
-        // Dealer button position
-        const dDist = 17;
-        const dbx = pos.x + (dx_center / dist) * dDist + (dy_center / dist) * 4;
-        const dby = pos.y + (dy_center / dist) * dDist - (dx_center / dist) * 4;
+        // Dealer button position — moved more tangentially so it doesn't overlap cards
+        const dDist = 10;
+        const tangential = 7;
+        const dbx = pos.x + (dx_center / dist) * dDist + (dy_center / dist) * tangential;
+        const dby = pos.y + (dy_center / dist) * dDist - (dx_center / dist) * tangential;
 
         const isDealt =
           (seat.status === "active" || seat.status === "all-in" || seat.status === "folded") &&
