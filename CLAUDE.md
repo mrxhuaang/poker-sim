@@ -25,10 +25,12 @@ Multi-device Texas Hold'em simulator. Big screen runs the table, phones see priv
 | --------------------------------------------- | ------------------------------------------------------------- |
 | `src/lib/poker.ts`                            | Deck, shuffle (Fisher-Yates + `crypto.getRandomValues`), deal, advance, types |
 | `src/lib/handEval.ts`                         | 7-card best hand, category labels, ties                       |
+| `src/lib/handLabel.ts`                        | Spanish hand descriptions (e.g. "Par de ases", "Escalera al rey") |
 | `src/lib/rooms.ts`                            | Firestore room CRUD, lobby subcollection, hole subcollection  |
 | `src/lib/firebase.ts`                         | Lazy app/auth/firestore singletons (client-only)              |
 | `src/workers/equity.worker.ts`                | Exact + MC equity, multi-run dealer                           |
 | `src/components/table/PokerTable.tsx`         | Orchestrator. Accepts `sync` + `playersOverride` for host mode |
+| `src/components/table/RoundPokerTable.tsx`    | Betting-mode table. Seats use 10 fixed positions. Rotation via `rotationOffset` state. |
 | `src/components/cards/PlayingCard.tsx`        | 3D flip card. Mount-only deal tween + flip tween on `faceUp`. |
 | `src/app/host/page.tsx`                       | Auto-creates room, subscribes lobby, mounts host PokerTable   |
 | `src/app/play/[code]/page.tsx`                | Phone: lobby form, then private game view                     |
@@ -80,6 +82,8 @@ Don't add ad-hoc writes elsewhere. Funnel through this effect.
 
 Driver is an imperative async function `playRuns` in `PokerTable.tsx`. Do NOT replace with a `useEffect`-driven state machine — the earlier version caused page crashes from render cascades. Skip flag is a `useRef`, not state.
 
+Timing (non-skip): 500 ms between runs, 550 ms per flop card, 950 ms for turn/river. These create a dramatic build-up — do not collapse them without checking that the experience still feels suspenseful.
+
 ## Local persistence
 
 - `usePlayers` → `poker-sim:players`
@@ -116,3 +120,6 @@ Firebase calls require a real network. The smoke test path: `/host` → room cod
 - Don't store hole cards in the public room doc.
 - Don't put equity badges on the seat. Privacy invariant.
 - Don't run `next dev` from two terminals at the same port. The second one will hang trying to scaffold.
+- Don't render hole cards as `absolute -top-20 z-0` inside an `overflow-hidden` container — they will be clipped by the table surface. Render them outside the felt element as siblings in the `React.Fragment` and use `z-40`.
+- Don't compare `seat.status` against `'sit-out'` — the correct value in `SeatStatus` is `'sitting-out'`.
+- Don't add `phase` or `allInNegotiation` fields to `RoomState` (in `rooms.ts`) without also updating the `RoomDoc` type and Firestore rules. These fields exist only on `NormalGameState` in `betting.ts`.

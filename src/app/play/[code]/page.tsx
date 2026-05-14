@@ -1,34 +1,20 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
-import { Crown, Eye, EyeOff, Flame, RotateCcw, Shuffle, Sparkles } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { Crown, Eye, EyeOff, Flame, LogOut, RotateCcw, Shuffle, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useHole, useRoom, useLobby } from "@/hooks/useRoom";
 import { useCardBack } from "@/hooks/useCardBack";
-import { joinLobby, phoneSetSeatFlag } from "@/lib/rooms";
+import { joinLobby, leaveLobby, phoneSetSeatFlag } from "@/lib/rooms";
 import { randomSeed } from "@/lib/dicebear";
 import { Avatar } from "@/components/players/Avatar";
 import { PlayingCard } from "@/components/cards/PlayingCard";
 import { CardBackPicker } from "@/components/themes/CardBackPicker";
 import { BorderGlow } from "@/components/ui/BorderGlow";
-import { bestHand, categoryLabel } from "@/lib/handEval";
-import type { Card, Rank } from "@/lib/poker";
+import { describeHand } from "@/lib/handLabel";
+import type { Card } from "@/lib/poker";
 
-const RANK_FULL: Record<Rank, string> = {
-  "2": "Doses",
-  "3": "Treses",
-  "4": "Cuatros",
-  "5": "Cincos",
-  "6": "Seises",
-  "7": "Sietes",
-  "8": "Ochos",
-  "9": "Nueves",
-  T: "Dieces",
-  J: "Jotas",
-  Q: "Reinas",
-  K: "Reyes",
-  A: "Ases",
-};
+
 
 export default function PlayPage() {
   const params = useParams<{ code: string }>();
@@ -85,6 +71,7 @@ export default function PlayPage() {
   return (
     <PhoneGameView
       code={code}
+      uid={uid}
       mySeat={mySeat}
       room={room}
       hole={hole?.cards}
@@ -171,34 +158,31 @@ function LobbyForm({ code, uid }: { code: string; uid: string | null }) {
 
 function handLabel(hole: [Card, Card], community: Card[]): string | null {
   const all: Card[] = [...hole, ...community];
-  if (all.length >= 5) return categoryLabel(bestHand(all));
-  if (hole[0].rank === hole[1].rank) return `Par de ${RANK_FULL[hole[0].rank]}`;
-  return null;
+  return describeHand(all);
 }
 
 function PhoneGameView({
   code,
+  uid,
   mySeat,
   room,
   hole,
 }: {
   code: string;
+  uid: string | null;
   mySeat: NonNullable<NonNullable<ReturnType<typeof useRoom>>["state"]>["seats"][number];
   room: NonNullable<ReturnType<typeof useRoom>>;
   hole?: [Card, Card];
 }) {
+  const router = useRouter();
   const winners = room.result?.winners ?? [];
   const isWinner = winners.includes(mySeat.id);
   const seats = room.state!.seats;
   const activeCount = seats.filter((s) => !s.folded).length;
-  const [revealing, setRevealing] = useState(false);
+  const revealing = !!room.result;
   const { cardBack, setCardBack } = useCardBack();
   const [folding, setFolding] = useState(false);
   const [showCardBackPicker, setShowCardBackPicker] = useState(false);
-
-  useEffect(() => {
-    if (room.result) setRevealing(true);
-  }, [room.result]);
 
   const label = hole ? handLabel(hole, room.state!.community) : null;
 
@@ -222,6 +206,16 @@ function PhoneGameView({
     }
   }
 
+  async function onLeave() {
+    if (!uid) return;
+    try {
+      await leaveLobby(code, uid);
+    } catch {
+      /* ignore */
+    }
+    router.push("/");
+  }
+
   return (
     <div className="w-full max-w-md mx-auto px-4 py-6 flex flex-col gap-5">
       <header className="flex items-center justify-between p-3 rounded-2xl glass elevate">
@@ -234,11 +228,22 @@ function PhoneGameView({
             </span>
           </div>
         </div>
-        <div className="text-right">
-          <div className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">
-            Calle
+        <div className="flex items-center gap-3">
+          <div className="text-right">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+              Calle
+            </div>
+            <div className="text-sm text-zinc-100">{room.state!.street}</div>
           </div>
-          <div className="text-sm text-zinc-100">{room.state!.street}</div>
+          <button
+            type="button"
+            onClick={onLeave}
+            className="p-2 rounded-full bg-white/5 hover:bg-rose-500/20 ring-1 ring-white/10 hover:ring-rose-400/30 text-zinc-400 hover:text-rose-300 transition"
+            title="Salir de la sala"
+            aria-label="Salir de la sala"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </header>
 
@@ -256,31 +261,13 @@ function PhoneGameView({
         </div>
       ) : null}
 
-      {/* All-in Negotiation */}
-      {room.state?.phase === 'all-in-negotiation' && !mySeat.folded && (
-        <div className="animate-in zoom-in fade-in duration-300 px-4 py-5 rounded-3xl bg-emerald-500/10 ring-1 ring-emerald-400/40 text-center flex flex-col gap-4">
-          <div>
-            <h3 className="text-lg font-bold text-emerald-100">¡All-in!</h3>
-            <p className="text-xs text-emerald-200/60 uppercase tracking-widest mt-1">¿Cuántas veces quieres tirar el resto?</p>
+      {/* Hand strength label — PokerStars style */}
+      {label && hole && !mySeat.folded && (
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-400 flex items-center justify-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-gradient-to-r from-emerald-500/15 to-teal-500/10 ring-1 ring-emerald-400/30 shadow-[0_0_20px_-4px_rgba(52,211,153,0.25)]">
+            <span className="text-[11px] uppercase tracking-[0.25em] text-emerald-400/60 font-bold">Tu mano</span>
+            <span className="text-sm font-semibold text-emerald-100">{label}</span>
           </div>
-          <div className="flex items-center gap-2 justify-center">
-            {[1, 2, 3].map(n => (
-              <button
-                key={n}
-                onClick={() => {
-                  phoneSetSeatFlag(code, mySeat.id, 'vote' as any, n);
-                }}
-                className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg transition btn-press ${
-                  (room.state?.allInNegotiation?.votes?.[mySeat.id] === n)
-                  ? 'bg-emerald-500 text-emerald-950 shadow-lg shadow-emerald-500/30'
-                  : 'bg-white/5 text-zinc-300 hover:bg-white/10 ring-1 ring-white/10'
-                }`}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-          <p className="text-[10px] text-zinc-500">La mesa esperará a que todos los implicados elijan.</p>
         </div>
       )}
 
@@ -325,13 +312,7 @@ function PhoneGameView({
             <div className="text-xs text-zinc-500 py-8">Sin cartas.</div>
           )}
         </div>
-        {label && hole ? (
-          <div className="mt-2 flex items-center justify-center">
-            <span className="px-3 py-1 rounded-full bg-emerald-500/10 ring-1 ring-emerald-400/30 text-emerald-200 text-xs">
-              {label}
-            </span>
-          </div>
-        ) : null}
+
         <div className="mt-3 flex items-center justify-center gap-2 flex-wrap">
           <button
             type="button"

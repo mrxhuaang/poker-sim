@@ -1,6 +1,6 @@
 "use client";
 import React, { useMemo, useState } from "react";
-import { Maximize2, X } from "lucide-react";
+import { Maximize2, RotateCcw, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import type { NormalSeat, BettingRound, SidePot } from "@/lib/betting";
 import { formatChips } from "@/lib/betting";
@@ -37,6 +37,7 @@ export function RoundPokerTable({
   cardBack,
 }: RoundPokerTableProps) {
   const [showQR, setShowQR] = useState(false);
+  const [rotationOffset, setRotationOffset] = useState(0);
   const t = getTableTheme(theme);
 
   const joinUrl =
@@ -47,24 +48,38 @@ export function RoundPokerTable({
   // 10 positions for a PokerNow style table
   const positions = useMemo(() => {
     return [
-      { x: 50, y: 92 },  // 0: Bottom center
-      { x: 15, y: 85 },  // 1: Bottom left
-      { x: 5, y: 60 },   // 2: Middle left bottom
-      { x: 5, y: 35 },   // 3: Middle left top
-      { x: 15, y: 12 },  // 4: Top left
-      { x: 50, y: 5 },   // 5: Top center
-      { x: 85, y: 12 },  // 6: Top right
-      { x: 95, y: 35 },  // 7: Middle right top
-      { x: 95, y: 60 },  // 8: Middle right bottom
-      { x: 85, y: 85 },  // 9: Bottom right
+      { x: 50, y: 94 },  // 0: Bottom center
+      { x: 18, y: 87 },  // 1: Bottom left
+      { x: 7,  y: 63 },  // 2: Middle left bottom
+      { x: 7,  y: 37 },  // 3: Middle left top
+      { x: 18, y: 13 },  // 4: Top left
+      { x: 50, y: 6  },  // 5: Top center
+      { x: 82, y: 13 },  // 6: Top right
+      { x: 93, y: 37 },  // 7: Middle right top
+      { x: 93, y: 63 },  // 8: Middle right bottom
+      { x: 82, y: 87 },  // 9: Bottom right
     ];
   }, []);
 
+  // Rotate seats so selfUid is always at bottom-center (position 0)
+  function rotateSelfToCenter() {
+    if (!selfUid) return;
+    const idx = seats.findIndex((s) => s.id === selfUid);
+    if (idx < 0) return;
+    setRotationOffset((10 - idx) % seats.length);
+  }
+
+  const rotatedSeats = useMemo(() => {
+    if (rotationOffset === 0) return seats;
+    const n = seats.length;
+    return seats.map((_, i) => seats[(i - rotationOffset + n) % n]);
+  }, [seats, rotationOffset]);
+
   return (
-    <div className="relative w-full max-w-[1500px] aspect-[16/8] mx-auto select-none">
+    <div className="relative w-full max-w-[1500px] aspect-[16/9] mx-auto select-none">
       {/* Table Surface */}
       <div 
-        className="absolute inset-x-[5%] inset-y-[15%] rounded-[200px] shadow-[inset_0_0_120px_rgba(0,0,0,0.6),0_40px_100px_-30px_rgba(0,0,0,0.8)] overflow-hidden"
+        className="absolute inset-x-[7%] inset-y-[17%] rounded-[200px] shadow-[inset_0_0_120px_rgba(0,0,0,0.6),0_40px_100px_-30px_rgba(0,0,0,0.8)] overflow-hidden"
         style={{ 
           background: t.feltGradient,
           boxShadow: `inset 0 0 120px rgba(0,0,0,0.6), 0 40px 100px -30px rgba(0,0,0,0.8), 0 0 0 12px #27272a, 0 0 0 14px #3f3f46`
@@ -109,7 +124,7 @@ export function RoundPokerTable({
       </div>
 
       {/* Seats */}
-      {seats.map((seat, i) => {
+      {rotatedSeats.map((seat, i) => {
         const pos = positions[i] || positions[0];
         const isToAct = betting.toActId === seat.id;
         const isWinner = winners.includes(seat.id);
@@ -151,45 +166,52 @@ export function RoundPokerTable({
 
         return (
           <React.Fragment key={seat.id}>
+            {/* Hole cards — rendered OUTSIDE overflow:hidden surface, above everything else */}
+            {isDealt && (
+              <div
+                className={`absolute flex gap-0.5 z-40 pointer-events-none ${seat.status === 'folded' ? 'opacity-30 grayscale' : ''}`}
+                style={{
+                  left: `${pos.x}%`,
+                  top: `${pos.y}%`,
+                  transform: 'translate(-50%, calc(-100% - 56px))',
+                }}
+              >
+                {faceUpCards ? (
+                  faceUpCards.map((c, ci) => (
+                    <div
+                      key={c.id + ci}
+                      style={{
+                        transform: `rotate(${ci === 0 ? -6 : 6}deg) translateY(${ci === 0 ? 0 : -2}px)`,
+                      }}
+                    >
+                      <PlayingCard card={c} faceUp size="sm" cardBack={cardBack as never} />
+                    </div>
+                  ))
+                ) : (
+                  [0, 1].map((ci) => (
+                    <div
+                      key={ci}
+                      style={{
+                        transform: `rotate(${ci === 0 ? -6 : 6}deg) translateY(${ci === 0 ? 0 : -2}px)`,
+                      }}
+                    >
+                      <PlayingCard
+                        card={{ id: `back-${seat.id}-${ci}`, rank: "A", suit: "S" } as Card}
+                        faceUp={false}
+                        size="sm"
+                        cardBack={cardBack as never}
+                      />
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
             {/* Seat Box (PokerNow Style) */}
             <div
               className={`absolute flex flex-col items-center transition-all duration-300 ${isToAct ? 'z-30' : 'z-20'}`}
               style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: 'translate(-50%, -50%)' }}
             >
-              {/* Hole cards above avatar */}
-              {isDealt && (
-                <div className={`absolute -top-20 left-1/2 -translate-x-1/2 flex gap-0.5 z-0 ${seat.status === 'folded' ? 'opacity-30 grayscale' : ''}`}>
-                  {faceUpCards ? (
-                    faceUpCards.map((c, ci) => (
-                      <div
-                        key={c.id + ci}
-                        style={{
-                          transform: `rotate(${ci === 0 ? -6 : 6}deg) translateY(${ci === 0 ? 0 : -2}px)`,
-                        }}
-                      >
-                        <PlayingCard card={c} faceUp size="sm" cardBack={cardBack as never} />
-                      </div>
-                    ))
-                  ) : (
-                    [0, 1].map((ci) => (
-                      <div
-                        key={ci}
-                        style={{
-                          transform: `rotate(${ci === 0 ? -6 : 6}deg) translateY(${ci === 0 ? 0 : -2}px)`,
-                        }}
-                      >
-                        <PlayingCard
-                          card={{ id: `back-${seat.id}-${ci}`, rank: "A", suit: "S" } as Card}
-                          faceUp={false}
-                          size="sm"
-                          cardBack={cardBack as never}
-                        />
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-
               {/* Avatar above seat */}
               <div className={`absolute -top-7 left-1/2 -translate-x-1/2 z-10 rounded-full ring-2 transition-all ${
                 isToAct
@@ -233,7 +255,7 @@ export function RoundPokerTable({
                     <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Fold</span>
                   </div>
                 )}
-                {seat.status === 'sit-out' && (
+                {seat.status === 'sitting-out' && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/60">
                     <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Away</span>
                   </div>
@@ -267,10 +289,10 @@ export function RoundPokerTable({
               </div>
             )}
 
-            {/* Dealer Button */}
+            {/* Dealer Button — z-50 to always appear above cards */}
             {isDealer && (
               <div 
-                className="absolute z-20 animate-in fade-in duration-500"
+                className="absolute z-50 animate-in fade-in duration-500"
                 style={{ left: `${dx}%`, top: `${dy}%`, transform: 'translate(-50%, -50%)' }}
               >
                 <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white shadow-lg ring-2 ring-zinc-500 flex items-center justify-center">
@@ -290,6 +312,17 @@ export function RoundPokerTable({
           title="Show Invite"
         >
           <Maximize2 className="w-4 h-4" />
+        </button>
+      )}
+
+      {/* Rotate-to-center button */}
+      {selfUid && seats.length > 0 && (
+        <button
+          onClick={rotateSelfToCenter}
+          className="absolute top-2 left-2 p-2 rounded-lg glass hover:bg-white/10 transition text-zinc-500 hover:text-white z-50"
+          title="Centrarme en la mesa"
+        >
+          <RotateCcw className="w-4 h-4" />
         </button>
       )}
 

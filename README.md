@@ -27,6 +27,8 @@ A multi-device Texas Hold'em simulator for in-person games. The big screen runs 
 - Streets advance one card at a time with smooth deal-in animations
 - Click hole cards to flip them with a 3D rotation
 - Per-seat fold and reveal controls (host-side and phone-side)
+- Phone view shows a PokerStars-style hand description in Spanish (e.g. "Trío de reyes", "Escalera al as") updated in real time as community cards appear
+- Non-host players have an exit button to leave the room cleanly
 - Showdown evaluates 7-card Texas Hold'em best hand and announces winner with confetti
 
 **Equity (host only)**
@@ -37,7 +39,7 @@ A multi-device Texas Hold'em simulator for in-person games. The big screen runs 
 
 **All-in with run it N times**
 - One-click all-in selector (1, 2, 3, 5 or custom)
-- Dramatic playback: each run replays the remaining streets, card by card, on the same table
+- Dramatic staggered playback: 500 ms between runs, 550 ms per flop card, 950 ms for turn/river — builds genuine suspense
 - Aggregate winner summary plus per-run board, winner and category in a modal
 - Skip button collapses delays for fast review
 - Each run counts as a separate hand in stats and history
@@ -202,7 +204,8 @@ src/
       HoleCards.tsx         Click-to-flip pair
       PlayerPicker.tsx      Local mode picker
       PlayerSeat.tsx        Seat layout, fold control, winner crown
-      PokerTable.tsx        Orchestrator
+      PokerTable.tsx        Orchestrator (presencial mode)
+      RoundPokerTable.tsx   Betting-mode table with fixed positions + rotation
       RunResults.tsx        Multi-run summary modal
   hooks/
     useAuth.ts              Firebase anonymous auth
@@ -216,6 +219,7 @@ src/
     dicebear.ts             createAvatar(lorelei) wrapper
     firebase.ts             Lazy app/auth/firestore singletons
     handEval.ts             7-card evaluator + category labels
+    handLabel.ts            Full Spanish hand descriptions
     poker.ts                Deck, shuffle, deal, advance, types
     rooms.ts                Firestore room helpers
     storage.ts              localStorage helpers
@@ -261,12 +265,24 @@ npm run lint      # eslint
 
 ## Roadmap
 
+**Near term**
 - Per-room stats and history synced to Firestore (currently host-local)
+- GSAP chip-to-pot animation for bets (timeline per action)
+- Sound effects with mute toggle
+- Confetti burst on winner reveal (already in presencial mode, needs wiring to normal/torneo)
+- "Desconectado" indicator on a seat when a player loses connection
+
+**Medium term**
 - Spectator role separate from host
-- Tournament mode with knockouts and chip counts
+- Optional show-one-card fold (phone chooses which card to reveal)
+- Player notes per seat stored in localStorage (host-only)
+- AFK stand-up timer (auto-fold after configurable seconds)
+
+**Long term**
 - Side pots for proper all-in coverage
-- Custom card backs and felt themes
-- Replay mode for the last hand
+- Replay mode for the last hand (rewind Firestore snapshot history)
+- Custom card backs and felt themes per room
+- Tournament brackets and blind progression timers
 
 ---
 

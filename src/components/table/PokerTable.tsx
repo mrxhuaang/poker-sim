@@ -237,7 +237,7 @@ export function PokerTable({
       setState((s) =>
         s ? { ...s, community: baselineCommunity, street: "preflop" } : s,
       );
-      await sleep(skipRef.current ? 50 : 350);
+      await sleep(skipRef.current ? 50 : 500);
 
       const run = rs[i];
       for (let step = 1; step <= missing; step++) {
@@ -246,10 +246,13 @@ export function PokerTable({
           baselineCommunity.length + step,
         );
         setState((s) => (s ? { ...s, community: next } : s));
-        await sleep(skipRef.current ? 60 : 720);
+        // Dramatic pause: shorter for subsequent cards in flop, longer for turn/river
+        const isFlop = baselineCommunity.length === 0 && step <= 3;
+        const delay = skipRef.current ? 60 : isFlop ? 550 : 950;
+        await sleep(delay);
       }
       setRunHighlight(run.winners);
-      await sleep(skipRef.current ? 200 : 1500);
+      await sleep(skipRef.current ? 200 : 1800);
     }
     setRunHighlight([]);
     setPlayback(null);
@@ -585,7 +588,7 @@ function Felt({
   const n = state.seats.length;
   const t = getTableTheme(theme);
   return (
-    <div className="relative w-full max-w-4xl aspect-[16/10] my-2">
+    <div className="relative w-full max-w-4xl aspect-[16/11] my-2">
       <div
         className="absolute inset-0 rounded-[50%] shadow-[inset_0_0_120px_rgba(0,0,0,0.6),0_30px_80px_-30px_rgba(0,0,0,0.7)]"
         style={{
@@ -598,8 +601,8 @@ function Felt({
       </div>
       {state.seats.map((seat, i) => {
         const angle = (i / n) * Math.PI * 2 + Math.PI / 2;
-        const rx = 46;
-        const ry = 44;
+        const rx = 43;
+        const ry = 41;
         const x = 50 + Math.cos(angle) * rx;
         const y = 50 + Math.sin(angle) * ry;
         return (
