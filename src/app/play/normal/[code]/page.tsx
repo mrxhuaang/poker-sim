@@ -1,19 +1,19 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { Trophy, Clock, RefreshCw } from "lucide-react";
-import { PlayingCard } from "@/components/cards/PlayingCard";
-import { BettingControls } from "@/components/betting/BettingControls";
-import { PotDisplay } from "@/components/betting/PotDisplay";
-import { TurnTimer } from "@/components/betting/TurnTimer";
-import { Avatar } from "@/components/players/Avatar";
-import { JoinWithStack } from "@/components/lobby/JoinWithStack";
+import { Clock, Trophy, X as CloseIcon, Menu } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useNormalRoom, useNormalLobby } from "@/hooks/useNormalRoom";
-import { useNormalHole } from "@/hooks/useNormalRoom";
+import { useNormalRoom, useNormalLobby, useNormalHole } from "@/hooks/useNormalRoom";
+import { useChat } from "@/hooks/useChat";
+import { useReactions } from "@/hooks/useReactions";
+import { ReactionBar } from "@/components/reactions/ReactionBar";
+import { JoinWithStack } from "@/components/lobby/JoinWithStack";
+import { Avatar } from "@/components/players/Avatar";
 import {
   postPlayerAction,
   patchLobbyPlayer,
+  postPlayerVote,
+  lobbyToSeats,
 } from "@/lib/normalRooms";
 import {
   submitStackRequest,
@@ -22,17 +22,39 @@ import {
   type StackRequest,
 } from "@/lib/stackRequests";
 import { formatChips } from "@/lib/betting";
-import { getTableTheme } from "@/lib/themes";
+import type {
+  BettingAction,
+  BettingRound,
+  NormalSeat,
+} from "@/lib/betting";
 import type { TableThemeId } from "@/lib/themes";
-import type { BettingAction } from "@/lib/betting";
 import { CATEGORY_LABEL } from "@/lib/handEval";
+import { TableShell } from "@/components/table/TableShell";
+import { ChatPanel } from "@/components/chat/ChatPanel";
+import { BettingDock } from "@/components/betting/BettingDock";
+import { AllInVoteModal } from "@/components/betting/AllInVoteModal";
+
+const EMPTY_BETTING: BettingRound = {
+  pot: 0,
+  sidePots: [],
+  currentBet: 0,
+  minRaise: 0,
+  toActId: null,
+  lastAggressorId: null,
+  dealerIdx: -1,
+  sbIdx: -1,
+  bbIdx: -1,
+  handNum: 0,
+  actedThisRound: [],
+};
 
 export default function PlayNormalPage() {
   const params = useParams<{ code: string }>();
   const code = params.code?.toUpperCase() ?? null;
   const { uid, loading } = useAuth();
-  const mySeed = useRef(Math.random().toString(36).slice(2));
+  const mySeedRef = useRef(Math.random().toString(36).slice(2));
 
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const [myRequest, setMyRequest] = useState<StackRequest | null | undefined>(
     undefined,
   );
@@ -40,8 +62,9 @@ export default function PlayNormalPage() {
   const room = useNormalRoom(code);
   const lobby = useNormalLobby(code);
   const hole = useNormalHole(code, uid);
+  const chatMessages = useChat(code);
+  const reactions = useReactions(code);
 
-  // Subscribe to own stack request status
   useEffect(() => {
     if (!code || !uid) return;
     return subscribeMyStackRequest(code, uid, setMyRequest);
@@ -49,22 +72,29 @@ export default function PlayNormalPage() {
 
   const gs = room?.state ?? null;
   const config = room?.config;
-  const theme = (room?.theme as TableThemeId) ?? "emerald";
-  const t = getTableTheme(theme);
+  const theme: TableThemeId = (room?.theme as TableThemeId) ?? "emerald";
   const locked = room?.locked ?? false;
 
   const inLobby = uid ? lobby.some((p) => p.uid === uid) : false;
   const myLobbyEntry = uid ? lobby.find((p) => p.uid === uid) : null;
   const mySeat = gs?.seats.find((s) => s.id === uid) ?? null;
   const isMyTurn = !!(gs && gs.betting.toActId === uid);
-  const result = room?.result;
+  const result = room?.result ?? null;
+
+  const placeholderSeats: NormalSeat[] = useMemo(() => {
+    if (gs) return gs.seats as NormalSeat[];
+    if (!config) return [];
+    const ownerMap: Record<string, string | null> = {};
+    for (const p of lobby) ownerMap[p.uid] = p.uid;
+    return lobbyToSeats(lobby, config, ownerMap);
+  }, [gs, lobby, config]);
 
   async function handleJoinRequest(name: string, stack: number) {
     if (!uid || !code) return;
     await submitStackRequest(code, {
       uid,
       name,
-      seed: mySeed.current,
+      seed: mySeedRef.current,
       requestedStack: stack,
       type: "join",
       ts: Date.now(),
@@ -103,312 +133,239 @@ export default function PlayNormalPage() {
 
   if (loading || room === undefined) {
     return (
-      <div className="p-8 text-center text-zinc-500 text-sm">Conectando…</div>
+      <div className="fixed inset-0 flex items-center justify-center text-zinc-500 text-sm bg-[#0b0b0b]">
+        Conectando…
+      </div>
     );
   }
   if (!room) {
     return (
-      <div className="p-8 text-center text-zinc-500 text-sm">
+      <div className="fixed inset-0 flex items-center justify-center text-zinc-500 text-sm bg-[#0b0b0b]">
         Sala no encontrada.
       </div>
     );
   }
 
-  // ── Not in lobby ──────────────────────────────────────────────────
   if (!inLobby) {
-    // Pending
-    if (myRequest?.status === "pending") {
-      return (
-        <div className="w-full max-w-sm mx-auto py-16 px-4 flex flex-col items-center gap-4">
-          <Clock className="w-10 h-10 text-amber-300 animate-pulse" />
-          <p className="text-zinc-100 font-medium">Solicitud enviada</p>
-          <p className="text-xs text-zinc-500 text-center">
-            Esperando que el dueño de la sala apruebe tu entrada con{" "}
-            <span className="text-zinc-300 tabular-nums">
-              {formatChips(myRequest.requestedStack)}
-            </span>{" "}
-            fichas.
-          </p>
-        </div>
-      );
-    }
-
-    // Rejected
-    if (myRequest?.status === "rejected") {
-      return (
-        <div className="w-full max-w-sm mx-auto py-16 px-4 flex flex-col items-center gap-4">
-          <div className="p-4 rounded-2xl bg-rose-500/10 ring-1 ring-rose-400/30 text-center">
-            <p className="text-rose-200 font-medium text-sm">
-              Solicitud rechazada
-            </p>
-            {myRequest.rejectionReason && (
-              <p className="text-xs text-rose-300/70 mt-1">
-                {myRequest.rejectionReason}
-              </p>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={handleRetry}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/10 ring-1 ring-white/10 text-zinc-200 text-sm hover:bg-white/15 transition"
-          >
-            <RefreshCw className="w-4 h-4" /> Intentar de nuevo
-          </button>
-        </div>
-      );
-    }
-
-    // Join form (no request or request was dismissed)
     return (
-      <div className="w-full max-w-sm mx-auto py-10 px-4">
-        <JoinWithStack
-          suggestedStack={config?.startingStack ?? 1000}
-          locked={locked}
-          onSubmit={handleJoinRequest}
-        />
+      <div className="fixed inset-0 bg-[#0b0b0b] flex items-center justify-center p-4">
+        {myRequest?.status === "pending" ? (
+          <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-500">
+            <Clock className="w-12 h-12 text-amber-300 animate-pulse" />
+            <h2 className="text-xl font-bold text-white">Solicitud enviada</h2>
+            <p className="text-sm text-zinc-500 text-center max-w-xs">
+              Esperando aprobación con{" "}
+              <span className="text-emerald-400 font-mono font-bold">
+                {formatChips(myRequest.requestedStack)}
+              </span>{" "}
+              fichas.
+            </p>
+          </div>
+        ) : myRequest?.status === "rejected" ? (
+          <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-500">
+            <div className="p-6 rounded-[32px] bg-rose-500/10 ring-1 ring-rose-500/30 text-center max-w-xs">
+              <h2 className="text-xl font-bold text-rose-200">Rechazado</h2>
+              {myRequest.rejectionReason && (
+                <p className="text-xs text-rose-300/60 mt-2">
+                  {myRequest.rejectionReason}
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={handleRetry}
+              className="px-6 py-3 rounded-2xl bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-200 text-sm font-bold transition btn-press"
+            >
+              Intentar de nuevo
+            </button>
+          </div>
+        ) : (
+          <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <JoinWithStack
+              suggestedStack={config?.startingStack ?? 1000}
+              locked={locked}
+              onSubmit={handleJoinRequest}
+            />
+          </div>
+        )}
       </div>
     );
   }
 
-  // ── In lobby ──────────────────────────────────────────────────────
   const isOut = mySeat?.status === "out";
   const needsRebuy = isOut && !myRequest;
   const rebuyPending = myRequest?.status === "pending" && myRequest.type === "rebuy";
 
-  return (
-    <div className="w-full max-w-lg mx-auto px-4 py-6 flex flex-col gap-4">
-      {/* Community cards + pot */}
-      {gs ? (
-        <div
-          className="rounded-3xl p-5 flex flex-col items-center gap-3"
-          style={{ background: t.feltGradient }}
-        >
-          <PotDisplay
-            pot={gs.betting.pot}
-            sidePots={gs.betting.sidePots}
-            currentBet={gs.betting.currentBet}
+  const playerExtra =
+    needsRebuy || rebuyPending ? (
+      <div className="mt-3">
+        {needsRebuy && (
+          <JoinWithStack
+            defaultName={myLobbyEntry?.name ?? ""}
+            suggestedStack={config?.startingStack ?? 1000}
+            mode="rebuy"
+            onSubmit={async (_, stack) => handleRebuyRequest(stack)}
           />
-          <div className="flex items-center gap-1.5 flex-wrap justify-center">
-            {gs.community.map((c, i) => (
-              <PlayingCard
-                key={c.id + i}
-                card={c}
-                faceUp
-                size="sm"
-                dealIn={false}
-              />
-            ))}
-            {Array.from({ length: 5 - gs.community.length }).map((_, i) => (
-              <PlayingCard
-                key={`e${i}`}
-                faceUp={false}
-                size="sm"
-                dealIn={false}
-              />
-            ))}
-          </div>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">
-            {gs.street} · {gs.phase}
-          </div>
-        </div>
-      ) : (
-        <div className="py-8 text-center text-zinc-500 text-sm glass rounded-2xl">
-          Esperando que el host reparta…
-        </div>
-      )}
-
-      {/* My hole cards */}
-      <div className="flex flex-col items-center gap-3 p-4 rounded-2xl glass">
-        <span className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
-          Tus cartas
-        </span>
-        <div className="flex items-center gap-4">
-          {hole?.cards ? (
-            hole.cards.map((c, i) => (
-              <PlayingCard key={c.id + i} card={c} faceUp size="lg" dealIn />
-            ))
-          ) : (
-            <>
-              <PlayingCard faceUp={false} size="lg" dealIn={false} />
-              <PlayingCard faceUp={false} size="lg" dealIn={false} />
-            </>
-          )}
-        </div>
-        {mySeat && !isOut && (
-          <div className="flex items-center gap-3 text-sm">
-            <span className="text-zinc-400">{mySeat.name}</span>
-            <span className="tabular-nums font-semibold text-emerald-300">
-              {formatChips(mySeat.chips)}
-            </span>
-            {mySeat.bet > 0 && (
-              <span className="tabular-nums text-zinc-500 text-xs">
-                +{formatChips(mySeat.bet)} en bote
-              </span>
-            )}
+        )}
+        {rebuyPending && (
+          <div className="text-center py-3 bg-amber-500/10 rounded-2xl border border-amber-500/20 text-[11px] font-bold text-amber-200 uppercase tracking-widest">
+            Rebuy pendiente ({formatChips(myRequest!.requestedStack)})
           </div>
         )}
       </div>
+    ) : null;
 
-      {/* Result banner */}
-      {result && (
-        <div
-          className={`px-4 py-3 rounded-2xl ring-1 text-sm text-center flex items-center justify-center gap-2 ${
-            result.winners.includes(uid ?? "")
-              ? "bg-amber-300/15 ring-amber-300/40 text-amber-100"
-              : "bg-white/5 ring-white/10 text-zinc-400"
-          }`}
-        >
-          {result.winners.includes(uid ?? "") && (
-            <Trophy className="w-4 h-4 text-amber-300" />
-          )}
-          {result.winners.includes(uid ?? "") ? "¡Ganaste!" : "Mano terminada"}{" "}
-          — {CATEGORY_LABEL[result.category]}
+  const centerOverlay = (
+    <>
+      {!gs && (
+        <div className="px-6 py-3 rounded-2xl bg-zinc-900/80 backdrop-blur-md ring-1 ring-white/10 text-zinc-400 text-sm font-bold uppercase tracking-widest shadow-2xl flex items-center gap-2">
+          <Clock className="w-4 h-4 text-emerald-500 animate-pulse" />
+          Esperando al host…
         </div>
       )}
-
-      {/* Rebuy prompt */}
-      {needsRebuy && (
-        <JoinWithStack
-          defaultName={myLobbyEntry?.name ?? ""}
-          suggestedStack={config?.startingStack ?? 1000}
-          mode="rebuy"
-          onSubmit={async (_, stack) => handleRebuyRequest(stack)}
-        />
-      )}
-      {rebuyPending && (
-        <div className="px-4 py-3 rounded-2xl glass ring-1 ring-amber-300/20 text-xs text-amber-200 text-center flex items-center justify-center gap-2">
-          <Clock className="w-3.5 h-3.5 animate-pulse" />
-          Rebuy pendiente · {formatChips(myRequest!.requestedStack)} fichas
-        </div>
-      )}
-
-      {/* Turn: betting controls */}
-      {gs && mySeat && isMyTurn && mySeat.status === "active" && (
-        <div className="flex flex-col gap-3 p-4 rounded-2xl glass ring-1 ring-emerald-400/30">
-          <span className="text-xs text-emerald-300 font-medium uppercase tracking-[0.15em]">
-            Tu turno
-          </span>
-          {mySeat.turnDeadline !== null && config && (
-            <TurnTimer
-              deadline={mySeat.turnDeadline}
-              turnTime={config.turnTime}
-              timeBank={mySeat.timeBank}
-            />
-          )}
-          <BettingControls
-            seat={mySeat}
-            betting={gs.betting}
-            onAction={handleAction}
-          />
-        </div>
-      )}
-
-      {/* Other players */}
-      {gs && gs.seats.filter((s) => s.id !== uid).length > 0 && (
-        <div className="flex flex-col gap-2">
-          <span className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
-            Mesa
-          </span>
-          <ul className="flex flex-col gap-1.5">
-            {gs.seats
-              .filter((s) => s.id !== uid)
-              .map((seat) => (
-                <li
-                  key={seat.id}
-                  className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl ring-1 transition ${
-                    gs.betting.toActId === seat.id
-                      ? "bg-emerald-500/10 ring-emerald-400/30"
-                      : seat.status === "folded"
-                        ? "glass ring-white/5 opacity-40"
-                        : "glass ring-white/8"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <Avatar seed={seat.seed} size={24} />
-                    <span className="text-xs text-zinc-200">{seat.name}</span>
-                    {gs.betting.toActId === seat.id && (
-                      <span className="text-[9px] uppercase tracking-widest text-emerald-300 bg-emerald-400/10 px-1.5 py-0.5 rounded-full">
-                        Turno
-                      </span>
-                    )}
-                    {seat.status === "all-in" && (
-                      <span className="text-[9px] uppercase tracking-widest text-amber-300 bg-amber-400/10 px-1.5 py-0.5 rounded-full">
-                        All-in
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 text-xs tabular-nums">
-                    {seat.bet > 0 && (
-                      <span className="text-zinc-500">
-                        +{formatChips(seat.bet)}
-                      </span>
-                    )}
-                    <span
-                      className={
-                        seat.status === "folded"
-                          ? "text-zinc-500"
-                          : seat.status === "all-in"
-                            ? "text-amber-300 font-medium"
-                            : "text-zinc-100 font-medium"
-                      }
-                    >
-                      {formatChips(seat.chips)}
-                    </span>
-                  </div>
-                </li>
-              ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Sit-out toggle */}
-      {myLobbyEntry && !isOut && (
-        <div className="flex items-center justify-between px-4 py-3 rounded-2xl glass ring-1 ring-white/8">
-          <div>
-            <p className="text-sm text-zinc-200">
-              {myLobbyEntry.sittingOut
-                ? "Estás sentado/a fuera"
-                : "Participando"}
-            </p>
-            <p className="text-xs text-zinc-500 mt-0.5">
-              {myLobbyEntry.sittingOut
-                ? "Vuelves en la próxima mano"
-                : "Activo/a en la mesa"}
+      {result && gs && (
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 fade-in duration-500">
+          <div className="px-8 py-4 rounded-[28px] bg-zinc-900/95 backdrop-blur-xl ring-2 ring-amber-400/50 shadow-[0_20px_80px_-20px_rgba(251,191,36,0.5)] flex flex-col items-center">
+            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-400 mb-1">
+              Mano terminada
+            </span>
+            <h4 className="text-xl font-black text-white flex items-center gap-2">
+              {result.winners.includes(uid ?? "") && (
+                <Trophy className="w-5 h-5 text-amber-400" />
+              )}
+              {result.winners.includes(uid ?? "")
+                ? "¡Has ganado!"
+                : result.winners
+                    .map((id) => gs.seats.find((s) => s.id === id)?.name ?? id)
+                    .join(" & ")}
+            </h4>
+            <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mt-1">
+              {CATEGORY_LABEL[result.category]}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleToggleSitOut}
-            className={`px-3 py-1.5 rounded-full text-xs ring-1 transition btn-press ${
-              myLobbyEntry.sittingOut
-                ? "bg-emerald-500/20 ring-emerald-400/30 text-emerald-200 hover:bg-emerald-500/30"
-                : "glass ring-white/10 text-zinc-400 hover:bg-white/10"
-            }`}
-          >
-            {myLobbyEntry.sittingOut ? "Volver a jugar" : "Sentar fuera"}
-          </button>
         </div>
       )}
+    </>
+  );
 
-      {/* Waiting lobby */}
-      {!gs && inLobby && (
-        <div className="p-4 rounded-2xl glass text-center">
-          <p className="text-xs text-zinc-400">
-            En sala · {lobby.length} jugadores
-          </p>
-          <ul className="flex flex-wrap gap-2 justify-center mt-3">
-            {lobby.map((p) => (
-              <li
-                key={p.uid}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 ring-1 ring-white/10 text-xs text-zinc-300"
-              >
-                <Avatar seed={p.seed} size={16} />
-                {p.name}
-              </li>
-            ))}
-          </ul>
+  const topLeft = (
+    <button
+      type="button"
+      onClick={() => setOptionsOpen(true)}
+      className="p-3 rounded-2xl glass hover:bg-white/10 ring-1 ring-white/10 text-zinc-300 transition btn-press shadow-xl"
+    >
+      <Menu className="w-5 h-5" />
+    </button>
+  );
+
+  return (
+    <>
+      <TableShell
+        seats={(gs?.seats ?? placeholderSeats) as NormalSeat[]}
+        community={gs?.community ?? []}
+        betting={gs?.betting ?? EMPTY_BETTING}
+        winners={result?.winners}
+        theme={theme}
+        roomCode={code ?? undefined}
+        selfUid={uid}
+        ownHole={hole?.cards ?? null}
+        revealedHoles={room?.revealedHoles ?? undefined}
+        cardBack={(room?.cardBack as never) ?? "classic-blue"}
+        topLeft={topLeft}
+        bottomLeft={
+          <>
+            <ChatPanel
+              code={code}
+              uid={uid}
+              name={myLobbyEntry?.name ?? ""}
+              seed={myLobbyEntry?.seed ?? ""}
+              messages={chatMessages}
+            />
+            <ReactionBar code={code} uid={uid} />
+          </>
+        }
+        reactions={reactions}
+        bottomRight={
+          <BettingDock
+            seat={mySeat}
+            name={myLobbyEntry?.name ?? mySeat?.name ?? ""}
+            seed={myLobbyEntry?.seed ?? mySeat?.seed ?? ""}
+            betting={gs?.betting ?? null}
+            holeCards={hole?.cards ?? null}
+            isMyTurn={isMyTurn}
+            turnTimeMs={config?.turnTime ?? 30_000}
+            hasResult={!!result}
+            onAction={handleAction}
+            extra={playerExtra}
+          />
+        }
+        centerOverlay={centerOverlay}
+      />
+
+      <AllInVoteModal
+        gameState={gs as never}
+        selfUid={uid}
+        onVote={(n) => {
+          if (code && uid) postPlayerVote(code, uid, n).catch(() => {});
+        }}
+      />
+
+      {optionsOpen && (
+        <div className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-zinc-900 rounded-[28px] ring-1 ring-white/10 shadow-2xl relative p-6 flex flex-col gap-5">
+            <button
+              type="button"
+              onClick={() => setOptionsOpen(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-white/10 text-zinc-500 hover:text-white transition"
+            >
+              <CloseIcon className="w-5 h-5" />
+            </button>
+            <h2 className="text-lg font-black uppercase tracking-tight text-white">
+              Mesa {code}
+            </h2>
+
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-white/5 ring-1 ring-white/10">
+              <div>
+                <p className="text-sm text-zinc-100 font-bold">Tu estado</p>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  {myLobbyEntry?.sittingOut ? "Sentado fuera" : "Activo"}
+                </p>
+              </div>
+              {!isOut && (
+                <button
+                  type="button"
+                  onClick={handleToggleSitOut}
+                  className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition btn-press ${
+                    myLobbyEntry?.sittingOut
+                      ? "bg-emerald-500 text-emerald-950 shadow-lg shadow-emerald-500/20"
+                      : "bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-300"
+                  }`}
+                >
+                  {myLobbyEntry?.sittingOut ? "Volver" : "Sentar fuera"}
+                </button>
+              )}
+            </div>
+
+            <div className="p-3 rounded-2xl bg-white/5 ring-1 ring-white/10 flex flex-col gap-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                Jugadores ({lobby.length})
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {lobby.map((p) => (
+                  <div
+                    key={p.uid}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 ring-1 ring-white/5 text-[11px] text-zinc-300"
+                  >
+                    <Avatar seed={p.seed} size={14} />
+                    {p.name}
+                    {p.uid === uid && " (Tú)"}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

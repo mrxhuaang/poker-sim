@@ -10,7 +10,13 @@ import {
   ChevronDown,
   Coins,
   RefreshCw,
+  Pause,
+  Play,
+  Pencil,
+  Shuffle,
+  Crown,
 } from "lucide-react";
+import { randomSeed } from "@/lib/dicebear";
 import { Avatar } from "@/components/players/Avatar";
 import { formatChips } from "@/lib/betting";
 import type { NormalLobbyPlayer } from "@/lib/normalRooms";
@@ -35,6 +41,8 @@ type Props = {
   gameSeats: NormalSeat[] | null;
   config: RoomConfig;
   locked: boolean;
+  hostUid?: string | null;
+  selfUid?: string | null;
   onAdjustChips: (uid: string, delta: number) => void;
   onSetAllChips: (amount: number) => void;
   onKick: (uid: string) => Promise<void>;
@@ -172,24 +180,30 @@ function PlayerRow({
   seat,
   lobbyPlayer,
   code,
+  isHost,
+  isSelf,
   onAdjust,
   onKick,
 }: {
   seat: NormalSeat | null;
   lobbyPlayer: NormalLobbyPlayer;
   code: string;
+  isHost: boolean;
+  isSelf: boolean;
   onAdjust: (uid: string, delta: number) => void;
   onKick: (uid: string) => Promise<void>;
 }) {
-  const [customDelta, setCustomDelta] = useState(500);
-  const [setAmount, setSetAmount] = useState(
-    seat?.chips ?? lobbyPlayer.chips,
+  const [editName, setEditName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(lobbyPlayer.name);
+  const [stackOpen, setStackOpen] = useState(false);
+  const [setAmount, setSetAmount] = useState<string>(
+    String(seat?.chips ?? lobbyPlayer.chips),
   );
-  const [showSet, setShowSet] = useState(false);
   const chips = seat?.chips ?? lobbyPlayer.chips;
   const isOut = seat?.status === "out";
 
   async function handleKick() {
+    if (!confirm(`¿Expulsar a ${lobbyPlayer.name}?`)) return;
     await onKick(lobbyPlayer.uid);
   }
 
@@ -199,116 +213,199 @@ function PlayerRow({
     }).catch(() => {});
   }
 
-  function handleSetChips() {
+  async function handleSaveName() {
+    const v = nameDraft.trim().slice(0, 24);
+    if (!v) return setEditName(false);
+    await patchLobbyPlayer(code, lobbyPlayer.uid, { name: v }).catch(() => {});
+    setEditName(false);
+  }
+
+  async function handleShuffleAvatar() {
+    await patchLobbyPlayer(code, lobbyPlayer.uid, { seed: randomSeed() }).catch(() => {});
+  }
+
+  function adjust(delta: number) {
     if (!seat) {
-      patchLobbyPlayer(code, lobbyPlayer.uid, { chips: setAmount }).catch(
-        () => {},
-      );
+      patchLobbyPlayer(code, lobbyPlayer.uid, { chips: Math.max(0, chips + delta) }).catch(() => {});
     } else {
-      onAdjust(lobbyPlayer.uid, setAmount - chips);
+      onAdjust(lobbyPlayer.uid, delta);
     }
-    setShowSet(false);
+  }
+
+  function handleSetChips() {
+    const val = Math.max(0, Number(setAmount) || 0);
+    if (!seat) {
+      patchLobbyPlayer(code, lobbyPlayer.uid, { chips: val }).catch(() => {});
+    } else {
+      onAdjust(lobbyPlayer.uid, val - chips);
+    }
+    setStackOpen(false);
   }
 
   return (
     <li
-      className={`flex flex-col gap-2 p-3 rounded-xl ring-1 transition ${
-        isOut ? "glass ring-white/5 opacity-40" : "glass ring-white/8"
+      className={`rounded-2xl ring-1 transition overflow-hidden ${
+        isOut
+          ? "bg-white/[0.02] ring-white/5 opacity-50"
+          : "bg-white/[0.03] ring-white/8 hover:ring-white/12"
       }`}
     >
-      <div className="flex items-center gap-2">
-        <Avatar seed={lobbyPlayer.seed} size={28} />
+      <div className="flex items-center gap-3 p-3">
+        <button
+          type="button"
+          onClick={isSelf ? handleShuffleAvatar : undefined}
+          className={`relative ${isSelf ? "hover:opacity-80 transition cursor-pointer" : ""}`}
+          title={isSelf ? "Cambiar avatar" : undefined}
+        >
+          <Avatar seed={lobbyPlayer.seed} size={36} />
+          {isSelf && (
+            <div className="absolute -bottom-0.5 -right-0.5 p-0.5 rounded-full bg-zinc-900 ring-1 ring-white/10">
+              <Shuffle className="w-2.5 h-2.5 text-emerald-400" />
+            </div>
+          )}
+        </button>
+
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm text-zinc-100 truncate">
-              {lobbyPlayer.name}
+          {editName ? (
+            <div className="flex items-center gap-1">
+              <input
+                value={nameDraft}
+                onChange={(e) => setNameDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSaveName();
+                  if (e.key === "Escape") setEditName(false);
+                }}
+                maxLength={24}
+                autoFocus
+                className="flex-1 min-w-0 px-2 py-1 rounded-lg bg-black/50 ring-1 ring-emerald-400/30 text-zinc-100 text-sm outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleSaveName}
+                className="p-1 rounded-lg bg-emerald-500/20 ring-1 ring-emerald-400/30 text-emerald-300 hover:bg-emerald-500/30 transition"
+              >
+                <Check className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-bold text-zinc-100 truncate">
+                {lobbyPlayer.name}
+              </span>
+              {isHost && <Crown className="w-3 h-3 text-amber-400 flex-shrink-0" />}
+              {isSelf && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNameDraft(lobbyPlayer.name);
+                    setEditName(true);
+                  }}
+                  className="p-0.5 rounded text-zinc-500 hover:text-zinc-200 transition"
+                  title="Editar nombre"
+                >
+                  <Pencil className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          )}
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="text-xs tabular-nums text-emerald-300 font-mono font-bold">
+              {formatChips(chips)}
             </span>
             {lobbyPlayer.sittingOut && (
-              <span className="text-[9px] uppercase tracking-widest text-zinc-500 bg-white/5 px-1.5 py-0.5 rounded-full">
+              <span className="text-[9px] uppercase tracking-widest text-zinc-500 bg-white/5 px-1.5 py-0.5 rounded-full font-bold">
                 Away
               </span>
             )}
             {seat?.status === "all-in" && (
-              <span className="text-[9px] uppercase tracking-widest text-amber-300 bg-amber-400/10 px-1.5 py-0.5 rounded-full">
+              <span className="text-[9px] uppercase tracking-widest text-amber-300 bg-amber-400/10 px-1.5 py-0.5 rounded-full font-bold">
                 All-in
               </span>
             )}
-          </div>
-          <div className="text-xs tabular-nums text-emerald-300 font-medium">
-            {formatChips(chips)}
+            {seat?.status === "folded" && (
+              <span className="text-[9px] uppercase tracking-widest text-zinc-500 bg-white/5 px-1.5 py-0.5 rounded-full font-bold">
+                Fold
+              </span>
+            )}
           </div>
         </div>
-        <div className="flex items-center gap-1">
+
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {!isOut && (
+            <button
+              type="button"
+              onClick={() => setStackOpen((v) => !v)}
+              title="Ajustar stack"
+              className={`p-1.5 rounded-lg ring-1 transition ${
+                stackOpen
+                  ? "bg-emerald-500/20 ring-emerald-400/30 text-emerald-300"
+                  : "bg-white/5 ring-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
+              }`}
+            >
+              <Coins className="w-3.5 h-3.5" />
+            </button>
+          )}
           <button
             type="button"
             onClick={handleToggleSitOut}
             title={lobbyPlayer.sittingOut ? "Reactivar" : "Sentar fuera"}
-            className="p-1.5 rounded-lg glass ring-1 ring-white/8 text-zinc-400 hover:bg-white/10 transition text-[10px]"
+            className="p-1.5 rounded-lg bg-white/5 ring-1 ring-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200 transition"
           >
-            {lobbyPlayer.sittingOut ? "▶" : "⏸"}
+            {lobbyPlayer.sittingOut ? (
+              <Play className="w-3.5 h-3.5" />
+            ) : (
+              <Pause className="w-3.5 h-3.5" />
+            )}
           </button>
-          <button
-            type="button"
-            onClick={handleKick}
-            title="Expulsar"
-            className="p-1.5 rounded-lg glass ring-1 ring-white/8 text-rose-400/60 hover:bg-rose-500/10 hover:text-rose-400 transition"
-          >
-            <UserX className="w-3.5 h-3.5" />
-          </button>
+          {!isSelf && (
+            <button
+              type="button"
+              onClick={handleKick}
+              title="Expulsar"
+              className="p-1.5 rounded-lg bg-white/5 ring-1 ring-white/10 text-rose-400/60 hover:bg-rose-500/10 hover:text-rose-400 transition"
+            >
+              <UserX className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
-      {!isOut && (
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => onAdjust(lobbyPlayer.uid, -customDelta)}
-            className="px-2 py-1 rounded-lg glass ring-1 ring-white/8 text-xs text-rose-300 hover:bg-rose-500/10 transition tabular-nums"
-          >
-            -{formatChips(customDelta)}
-          </button>
-          <input
-            type="number"
-            value={customDelta}
-            onChange={(e) => setCustomDelta(Math.max(1, Number(e.target.value)))}
-            min={1}
-            step={100}
-            className="w-16 px-2 py-1 rounded-lg bg-black/40 ring-1 ring-white/10 text-zinc-300 text-xs outline-none text-center tabular-nums"
-          />
-          <button
-            type="button"
-            onClick={() => onAdjust(lobbyPlayer.uid, customDelta)}
-            className="px-2 py-1 rounded-lg glass ring-1 ring-white/8 text-xs text-emerald-300 hover:bg-emerald-500/10 transition tabular-nums"
-          >
-            +{formatChips(customDelta)}
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowSet((v) => !v)}
-            className="ml-auto px-2 py-1 rounded-lg glass ring-1 ring-white/8 text-xs text-zinc-400 hover:bg-white/10 transition"
-          >
-            Set
-          </button>
-        </div>
-      )}
-
-      {showSet && !isOut && (
-        <div className="flex items-center gap-1.5">
-          <input
-            type="number"
-            value={setAmount}
-            onChange={(e) => setSetAmount(Math.max(0, Number(e.target.value)))}
-            min={0}
-            step={100}
-            className="flex-1 px-2 py-1.5 rounded-lg bg-black/40 ring-1 ring-white/10 text-zinc-100 text-xs outline-none tabular-nums"
-          />
-          <button
-            type="button"
-            onClick={handleSetChips}
-            className="px-3 py-1.5 rounded-lg bg-emerald-500/20 ring-1 ring-emerald-400/30 text-emerald-300 text-xs hover:bg-emerald-500/30 transition"
-          >
-            Aplicar
-          </button>
+      {stackOpen && !isOut && (
+        <div className="px-3 pb-3 flex flex-col gap-2 animate-in slide-in-from-top-1 fade-in duration-200">
+          <div className="flex items-center gap-1.5">
+            {[-1000, -500, -100, 100, 500, 1000].map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => adjust(d)}
+                className={`flex-1 px-1 py-1.5 rounded-lg text-[10px] font-bold tabular-nums transition ring-1 ${
+                  d < 0
+                    ? "bg-rose-500/5 ring-rose-400/20 text-rose-300 hover:bg-rose-500/15"
+                    : "bg-emerald-500/5 ring-emerald-400/20 text-emerald-300 hover:bg-emerald-500/15"
+                }`}
+              >
+                {d > 0 ? "+" : ""}
+                {d >= 1000 || d <= -1000 ? `${d / 1000}K` : d}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <input
+              type="text"
+              inputMode="numeric"
+              value={setAmount}
+              onChange={(e) => setSetAmount(e.target.value.replace(/[^0-9]/g, ""))}
+              className="flex-1 px-2.5 py-1.5 rounded-lg bg-black/50 ring-1 ring-white/10 text-zinc-100 text-xs outline-none tabular-nums focus:ring-emerald-400/40"
+              placeholder="Fijar stack..."
+            />
+            <button
+              type="button"
+              onClick={handleSetChips}
+              className="px-3 py-1.5 rounded-lg bg-emerald-500/20 ring-1 ring-emerald-400/30 text-emerald-300 text-[11px] font-bold uppercase tracking-widest hover:bg-emerald-500/30 transition btn-press"
+            >
+              Fijar
+            </button>
+          </div>
         </div>
       )}
     </li>
@@ -322,6 +419,8 @@ export function StackRequestPanel({
   gameSeats,
   config,
   locked,
+  hostUid,
+  selfUid,
   onAdjustChips,
   onSetAllChips,
   onKick,
@@ -334,10 +433,9 @@ export function StackRequestPanel({
 
   return (
     <div className="rounded-2xl glass overflow-hidden">
-      <button
-        type="button"
+      <div
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition cursor-pointer"
         onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition"
       >
         <div className="flex items-center gap-2">
           <span className="text-sm text-zinc-200 font-medium">Jugadores</span>
@@ -370,13 +468,15 @@ export function StackRequestPanel({
               </>
             )}
           </button>
-          {expanded ? (
-            <ChevronUp className="w-4 h-4 text-zinc-500" />
-          ) : (
-            <ChevronDown className="w-4 h-4 text-zinc-500" />
-          )}
+          <div className="p-1">
+            {expanded ? (
+              <ChevronUp className="w-4 h-4 text-zinc-500" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-zinc-500" />
+            )}
+          </div>
         </div>
-      </button>
+      </div>
 
       {expanded && (
         <div className="px-4 pb-4 flex flex-col gap-4">
@@ -412,6 +512,8 @@ export function StackRequestPanel({
                     seat={gameSeats?.find((s) => s.id === p.uid) ?? null}
                     lobbyPlayer={p}
                     code={code}
+                    isHost={!!hostUid && p.uid === hostUid}
+                    isSelf={!!selfUid && p.uid === selfUid}
                     onAdjust={onAdjustChips}
                     onKick={onKick}
                   />
@@ -422,25 +524,29 @@ export function StackRequestPanel({
 
           {/* Set all chips */}
           {lobby.length > 0 && (
-            <div className="flex items-center gap-2 pt-1 border-t border-white/8">
-              <span className="text-xs text-zinc-500 shrink-0">Igualar a</span>
-              <input
-                type="number"
-                value={setAllAmount}
-                onChange={(e) =>
-                  setSetAllAmount(Math.max(1, Number(e.target.value)))
-                }
-                min={1}
-                step={100}
-                className="flex-1 px-2.5 py-1.5 rounded-lg bg-black/40 ring-1 ring-white/10 text-zinc-100 text-xs outline-none tabular-nums"
-              />
-              <button
-                type="button"
-                onClick={() => onSetAllChips(setAllAmount)}
-                className="px-3 py-1.5 rounded-full glass ring-1 ring-white/10 text-xs text-zinc-200 hover:bg-white/10 transition whitespace-nowrap"
-              >
-                Igualar todos
-              </button>
+            <div className="flex flex-col gap-2 pt-2 border-t border-white/8">
+              <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-black">
+                Igualar stack a todos
+              </span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={setAllAmount}
+                  onChange={(e) =>
+                    setSetAllAmount(Math.max(1, Number(e.target.value)))
+                  }
+                  min={1}
+                  step={100}
+                  className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-black/40 ring-1 ring-white/10 text-zinc-100 text-xs outline-none tabular-nums focus:ring-emerald-400/40"
+                />
+                <button
+                  type="button"
+                  onClick={() => onSetAllChips(setAllAmount)}
+                  className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-emerald-500/20 ring-1 ring-emerald-400/30 text-emerald-300 text-[11px] font-bold uppercase tracking-widest hover:bg-emerald-500/30 transition btn-press"
+                >
+                  Aplicar
+                </button>
+              </div>
             </div>
           )}
         </div>

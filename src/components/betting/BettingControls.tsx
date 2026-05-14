@@ -48,75 +48,65 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
     : [];
 
   return (
-    <div className="flex flex-col gap-3 w-full">
+    <div className="flex flex-col gap-4 w-full">
       {sliderOpt && (
-        <div className="flex flex-col gap-2 p-3 rounded-2xl glass">
-          <div className="flex items-center justify-between text-xs text-zinc-400">
-            <span>Min: {formatChips(sliderOpt.min ?? 0)}</span>
-            <span className="text-zinc-100 font-medium tabular-nums">
-              {formatChips(raiseAmount)}
-            </span>
-            <span>Max: {formatChips(sliderOpt.max ?? 0)}</span>
-          </div>
-          <input
-            type="range"
-            min={sliderOpt.min ?? 0}
-            max={sliderOpt.max ?? seat.chips}
-            step={betting.minRaise > 0 ? betting.minRaise : 1}
-            value={raiseAmount}
-            onChange={handleSlider}
-            className="w-full accent-emerald-400"
-          />
-          <div className="flex gap-1.5 flex-wrap">
+        <div className="flex flex-col gap-3">
+          {/* Preset Buttons */}
+          <div className="flex gap-1">
             {presets.map((p) => (
               <button
                 key={p.label}
                 type="button"
-                onClick={() =>
-                  setRaiseAmount(
-                    Math.min(p.value, sliderOpt.max ?? p.value),
-                  )
-                }
-                className="flex-1 px-2 py-1 rounded-full text-[11px] bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-200 btn-press transition"
+                onClick={() => setRaiseAmount(Math.min(p.value, sliderOpt.max ?? p.value))}
+                className="flex-1 px-2 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-[10px] font-bold text-zinc-300 transition border border-white/5"
               >
                 {p.label}
               </button>
             ))}
           </div>
+
+          {/* Slider & Value Display */}
+          <div className="flex flex-col gap-2 p-4 rounded-2xl bg-black/40 border border-white/5">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Amount</span>
+              <span className="text-lg font-black text-emerald-400 tabular-nums">
+                {formatChips(raiseAmount)}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={sliderOpt.min ?? 0}
+              max={sliderOpt.max ?? seat.chips}
+              step={betting.minRaise > 0 ? betting.minRaise : 1}
+              value={raiseAmount}
+              onChange={handleSlider}
+              className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+            />
+          </div>
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-2">
+      {/* Main Action Buttons */}
+      <div className="flex gap-2 h-14">
         {canFold && (
           <button
             type="button"
             disabled={disabled}
             onClick={() => onAction("fold")}
-            className="px-4 py-3 rounded-2xl bg-rose-500/10 ring-1 ring-rose-400/30 text-rose-200 text-sm font-medium hover:bg-rose-500/20 disabled:opacity-40 btn-press transition"
+            className="flex-1 rounded-2xl bg-zinc-800 hover:bg-rose-900/40 text-rose-200 text-xs font-black uppercase tracking-widest border border-white/5 transition-all"
           >
             Fold
           </button>
         )}
 
-        {canCheck && (
+        {(canCheck || canCall) && (
           <button
             type="button"
             disabled={disabled}
-            onClick={() => onAction("check")}
-            className="px-4 py-3 rounded-2xl bg-white/5 ring-1 ring-white/10 text-zinc-100 text-sm font-medium hover:bg-white/10 disabled:opacity-40 btn-press transition"
+            onClick={() => onAction(canCheck ? "check" : "call")}
+            className="flex-[2] rounded-2xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-black uppercase tracking-widest transition-all shadow-lg"
           >
-            Check
-          </button>
-        )}
-
-        {canCall && (
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => onAction("call")}
-            className="px-4 py-3 rounded-2xl bg-blue-500/15 ring-1 ring-blue-400/30 text-blue-100 text-sm font-medium hover:bg-blue-500/25 disabled:opacity-40 btn-press transition"
-          >
-            Call {formatChips(toCall)}
+            {canCheck ? "Check" : `Call ${formatChips(toCall)}`}
           </button>
         )}
 
@@ -125,22 +115,20 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
             type="button"
             disabled={disabled}
             onClick={handleBetRaise}
-            className="px-4 py-3 rounded-2xl bg-emerald-500/20 ring-1 ring-emerald-400/40 text-emerald-100 text-sm font-medium hover:bg-emerald-500/30 disabled:opacity-40 btn-press transition"
+            className="flex-[2] rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-900/20"
           >
-            {raiseOpt ? "Raise" : "Bet"} {formatChips(raiseAmount)}
+            {raiseOpt ? "Raise" : "Bet"}
           </button>
         )}
 
-        {canAllIn && (
+        {!sliderOpt && canAllIn && (
           <button
             type="button"
             disabled={disabled}
             onClick={() => onAction("all-in")}
-            className={`px-4 py-3 rounded-2xl bg-amber-500/20 ring-1 ring-amber-400/40 text-amber-100 text-sm font-medium hover:bg-amber-500/30 disabled:opacity-40 btn-press transition ${
-              !canFold && !sliderOpt ? "col-span-2" : ""
-            }`}
+            className="flex-[2] rounded-2xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-black uppercase tracking-widest transition-all"
           >
-            All-in {formatChips(seat.chips)}
+            All-in
           </button>
         )}
       </div>

@@ -8,6 +8,12 @@ export type TournamentState = {
   pausedRemaining: number | null;
   knockouts: string[];
   finalRanking: string[];
+  started: boolean;
+  startedAt: number | null;
+  // Late registration window (ms after start) — null disables
+  lateRegUntilLevel?: number | null;
+  payouts?: number[];
+  reentries?: Record<string, number>;
 };
 
 export function getLevel(
@@ -31,11 +37,24 @@ export function levelTimeRemaining(
   now = Date.now(),
 ): number {
   const duration = config.blindLevelDuration ?? 15 * 60_000;
+  // Timer frozen until torneo starts
+  if (!state.started) return duration;
   if (state.paused && state.pausedRemaining !== null) {
     return state.pausedRemaining;
   }
   const elapsed = now - state.levelStartedAt;
   return Math.max(0, duration - elapsed);
+}
+
+export function startTournament(state: TournamentState): TournamentState {
+  if (state.started) return state;
+  const now = Date.now();
+  return {
+    ...state,
+    started: true,
+    startedAt: now,
+    levelStartedAt: now,
+  };
 }
 
 export function shouldAdvanceLevel(
@@ -100,6 +119,11 @@ export function initTournamentState(): TournamentState {
     pausedRemaining: null,
     knockouts: [],
     finalRanking: [],
+    started: false,
+    startedAt: null,
+    lateRegUntilLevel: 3,
+    payouts: [50, 30, 20],
+    reentries: {},
   };
 }
 

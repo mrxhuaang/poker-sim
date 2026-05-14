@@ -58,11 +58,21 @@ export type NormalRoomDoc = {
   state: PublicNormalState | null;
   pendingAction: PendingAction | null;
   result: (Showdown & { chips: Record<string, number> }) | null;
+  revealedHoles?: Record<string, [Card, Card]> | null;
   theme: string;
+  cardBack?: string;
   tournament: TournamentState | null;
   locked: boolean;
   pendingRebuys: Record<string, number>;
 };
+
+export async function setNormalRoomCardBack(
+  code: string,
+  cardBack: string,
+): Promise<void> {
+  const db = getDb();
+  await updateDoc(doc(db, "normalRooms", code), { cardBack });
+}
 
 export async function createNormalRoom(
   hostUid: string,
@@ -100,6 +110,11 @@ export async function createNormalRoom(
               pausedRemaining: null,
               knockouts: [],
               finalRanking: [],
+              started: false,
+              startedAt: null,
+              lateRegUntilLevel: 3,
+              payouts: [50, 30, 20],
+              reentries: {},
             }
           : null,
     };
@@ -222,6 +237,7 @@ export async function writeNormalDealt(
     state: toPublicState(gs),
     result: null,
     pendingAction: null,
+    revealedHoles: null,
   });
   for (const [seatId, cards] of Object.entries(holeCards)) {
     const ref = doc(db, "normalRooms", code, "holes", seatId);
@@ -250,6 +266,22 @@ export async function postPlayerAction(
   const db = getDb();
   await updateDoc(doc(db, "normalRooms", code), {
     pendingAction: { seatId, action, amount: amount ?? null, ts: Date.now() },
+  });
+}
+
+export async function postPlayerVote(
+  code: string,
+  uid: string,
+  vote: number,
+): Promise<void> {
+  const db = getDb();
+  const ref = doc(db, "normalRooms", code);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  const room = snap.data() as NormalRoomDoc;
+  const currentVotes = room.state?.allInNegotiation?.votes ?? {};
+  await updateDoc(ref, {
+    [`state.allInNegotiation.votes.${uid}`]: vote,
   });
 }
 

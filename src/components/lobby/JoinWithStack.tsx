@@ -73,13 +73,16 @@ export function JoinWithStack({
         </span>
         <div className="flex items-center gap-2">
           <input
-            type="number"
-            value={stack}
-            onChange={(e) => setStack(Math.max(1, Number(e.target.value)))}
-            min={1}
-            step={100}
+            type="text"
+            inputMode="numeric"
+            value={stack === 0 ? "" : stack}
+            onChange={(e) => {
+              const val = e.target.value.replace(/[^0-9]/g, "");
+              setStack(val === "" ? 0 : Number(val));
+            }}
             disabled={loading || locked}
             className="flex-1 px-3 py-2.5 rounded-xl bg-black/40 ring-1 ring-white/10 text-zinc-100 text-sm outline-none focus:ring-emerald-400/40 tabular-nums disabled:opacity-40"
+            placeholder="Monto de fichas..."
           />
           {suggestedStack > 0 && (
             <button

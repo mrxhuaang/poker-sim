@@ -13,6 +13,16 @@ const NAV_ITEMS = [
 export function Nav() {
   const path = usePathname();
 
+  // Hide nav on fullscreen game routes
+  if (
+    path?.startsWith("/host/normal") ||
+    path?.startsWith("/host/torneo") ||
+    path?.startsWith("/play/normal") ||
+    path?.startsWith("/play/torneo")
+  ) {
+    return null;
+  }
+
   return (
     <header className="sticky top-0 z-30 border-b border-white/[0.06] backdrop-blur-xl">
       <div className="mx-auto max-w-6xl px-3 py-2.5 sm:px-4">

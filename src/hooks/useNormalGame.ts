@@ -14,7 +14,18 @@ import {
   writeNormalDealt,
 } from "@/lib/normalRooms";
 import { showdown } from "@/lib/handEval";
+import { writeHandRecord } from "@/lib/handHistory";
 import type { Card } from "@/lib/poker";
+import { advance } from "@/lib/poker";
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function toPublicState(gs: NormalGameState) {
+  const { deck, ...rest } = gs;
+  return { ...rest, deckCount: deck.length };
+}
 
 type UseNormalGameReturn = {
   gameState: NormalGameState | null;
@@ -38,77 +49,7 @@ export function useNormalGame(
   const handNumRef = useRef(0);
   const dealerIdxRef = useRef(-1);
   const isAdminRef = useRef(false);
-
-  useEffect(() => {
-    isAdminRef.current = !!(uid && room?.adminUid === uid);
-  }, [uid, room?.adminUid]);
-
-  // Sync state from Firestore → local (non-admin clients just read)
-  useEffect(() => {
-    if (!room?.state) return;
-    if (isAdminRef.current) return; // admin owns local state
-    const { deckCount: _dc, ...rest } = room.state;
-    void _dc;
-    setGameState({ ...rest, deck: [] } as NormalGameState);
-  }, [room?.state]);
-
-  // Admin: process pending actions from players
-  useEffect(() => {
-    if (!isAdminRef.current || !code || !room?.pendingAction || !gameState)
-      return;
-    const pa: PendingAction = room.pendingAction;
-    if (Date.now() - pa.ts > 30_000) return; // stale
-
-    setIsProcessing(true);
-    const newState = handleAction(
-      gameState,
-      pa.seatId,
-      pa.action,
-      pa.amount ?? 0,
-    );
-    setGameState(newState);
-    patchNormalRoom(code, {
-      state: toPublicState(newState),
-      pendingAction: null,
-    })
-      .catch(() => {})
-      .finally(() => setIsProcessing(false));
-  }, [room?.pendingAction, code, gameState]);
-
-  // Admin: auto-fold on turn timer expiry
-  useEffect(() => {
-    if (!isAdminRef.current || !gameState || !code) return;
-    const toActId = gameState.betting.toActId;
-    if (!toActId) return;
-    const seat = gameState.seats.find((s) => s.id === toActId);
-    if (!seat?.turnDeadline) return;
-
-    const delay = seat.turnDeadline - Date.now() + seat.timeBank;
-    if (delay <= 0) return;
-
-    const timer = setTimeout(() => {
-      if (!gameState) return;
-      const newState = handleAction(gameState, toActId, "fold");
-      setGameState(newState);
-      if (code) {
-        patchNormalRoom(code, {
-          state: toPublicState(newState),
-          pendingAction: null,
-        }).catch(() => {});
-      }
-    }, delay);
-
-    return () => clearTimeout(timer);
-  }, [gameState, code]);
-
-  // Admin: write state to Firestore when it changes
-  const lastStateRef = useRef<NormalGameState | null>(null);
-  useEffect(() => {
-    if (!isAdminRef.current || !code || !gameState) return;
-    if (lastStateRef.current === gameState) return;
-    lastStateRef.current = gameState;
-    patchNormalRoom(code, { state: toPublicState(gameState) }).catch(() => {});
-  }, [gameState, code]);
+  const dealtHolesRef = useRef<Record<string, [Card, Card]>>({});
 
   const startNewHand = useCallback(async () => {
     if (!code || !isAdminRef.current) return;
@@ -172,6 +113,7 @@ export function useNormalGame(
       deck,
     };
 
+    dealtHolesRef.current = newHoleCards;
     setGameState(finalState);
     await writeNormalDealt(code, finalState, newHoleCards, ownersMap);
   }, [code, gameState, lobby, room?.config]);
@@ -183,10 +125,11 @@ export function useNormalGame(
       .filter((s) => s.status !== "folded" && s.status !== "out")
       .map((s) => s.id);
 
+    const allHoles = { ...dealtHolesRef.current, ...holeCards };
     const handShodownSeats = activeSeatIds
       .map((id) => {
         const seat = gameState.seats.find((s) => s.id === id)!;
-        const cards = holeCards[id];
+        const cards = allHoles[id];
         if (!cards) return null;
         return { player: { id }, hole: cards, folded: seat.status === "folded" };
       })
@@ -244,10 +187,37 @@ export function useNormalGame(
     };
     setGameState(newState);
 
+    const revealedHoles: Record<string, [Card, Card]> = {};
+    for (const id of activeSeatIds) {
+      const seat = gameState.seats.find((s) => s.id === id);
+      if (!seat || seat.status === "folded") continue;
+      const cards = allHoles[id];
+      if (cards) revealedHoles[id] = cards;
+    }
+
     await patchNormalRoom(code, {
       state: toPublicState(newState),
       result: { ...result, chips: newChips },
+      revealedHoles,
     });
+
+    // Record hand for history
+    const winnerInfo = result.winners.map((id) => {
+      const before = gameState.seats.find((s) => s.id === id)?.chips ?? 0;
+      const after = newChips[id] ?? before;
+      return {
+        id,
+        name: newSeats.find((s) => s.id === id)?.name ?? id,
+        amount: Math.max(0, after - before),
+      };
+    });
+    writeHandRecord(code, {
+      handNum: gameState.betting.handNum,
+      winners: winnerInfo,
+      category: result.category,
+      pot: gameState.betting.pot,
+      community: gameState.community.map((c) => c.id),
+    }).catch(() => {});
   }, [gameState, code, holeCards]);
 
   const adjustPlayerChips = useCallback(
@@ -303,6 +273,208 @@ export function useNormalGame(
     [code],
   );
 
+  useEffect(() => {
+    isAdminRef.current = !!(uid && room?.adminUid === uid);
+  }, [uid, room?.adminUid]);
+
+  // Sync state from Firestore → local (non-admin clients just read)
+  useEffect(() => {
+    if (!room?.state) return;
+    if (isAdminRef.current) return; // admin owns local state
+    const { deckCount: _dc, ...rest } = room.state;
+    void _dc;
+    setGameState({ ...rest, deck: [] } as NormalGameState);
+  }, [room?.state]);
+
+  // Admin: process pending actions from players
+  useEffect(() => {
+    if (!isAdminRef.current || !code || !room?.pendingAction || !gameState)
+      return;
+    const pa: PendingAction = room.pendingAction;
+    if (Date.now() - pa.ts > 30_000) {
+      patchNormalRoom(code, { pendingAction: null }).catch(() => {});
+      return;
+    }
+
+    // Authorization: only the player whose turn it is can act
+    if (pa.seatId !== gameState.betting.toActId) {
+      patchNormalRoom(code, { pendingAction: null }).catch(() => {});
+      return;
+    }
+    const actorSeat = gameState.seats.find((s) => s.id === pa.seatId);
+    if (!actorSeat || actorSeat.status !== "active") {
+      patchNormalRoom(code, { pendingAction: null }).catch(() => {});
+      return;
+    }
+
+    setIsProcessing(true);
+    const newState = handleAction(
+      gameState,
+      pa.seatId,
+      pa.action,
+      pa.amount ?? 0,
+    );
+    setGameState(newState);
+    patchNormalRoom(code, {
+      state: toPublicState(newState),
+      pendingAction: null,
+    })
+      .catch(() => {})
+      .finally(() => setIsProcessing(false));
+  }, [room?.pendingAction, code, gameState]);
+
+  // Admin: auto-resolve when phase reaches showdown
+  useEffect(() => {
+    if (!isAdminRef.current || !gameState || !code || isProcessing) return;
+    if (gameState.phase !== "showdown") return;
+    if (room?.result) return;
+    const t = setTimeout(() => {
+      void resolveShowdown();
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [gameState, code, isProcessing, room?.result, resolveShowdown]);
+
+  // Admin: auto next hand 6s after result
+  useEffect(() => {
+    if (!isAdminRef.current || !code) return;
+    if (!room?.result) return;
+    const remainingPlayers = (room.state?.seats ?? []).filter(
+      (s) => s.status !== "out" && s.chips > 0,
+    ).length;
+    if (remainingPlayers < 2) return;
+    const t = setTimeout(() => {
+      void startNewHand();
+    }, 6000);
+    return () => clearTimeout(t);
+  }, [room?.result, room?.state?.seats, code, startNewHand]);
+
+  // Admin: Auto-advance street if round is complete or all-in
+  useEffect(() => {
+    if (!isAdminRef.current || !gameState || !code || isProcessing) return;
+    if (gameState.phase === "showdown" || gameState.phase === "between-hands") return;
+
+    // Check if everyone is all-in or folded except one
+    const active = gameState.seats.filter(s => s.status === "active");
+    const unfolded = gameState.seats.filter(s => s.status !== "folded" && s.status !== "out");
+
+    if (unfolded.length <= 1) {
+      // Auto-showdown
+      void resolveShowdown();
+      return;
+    }
+
+    if (active.length === 0 && unfolded.length >= 2) {
+      // All-in scenario: wait for negotiation or auto-run
+      if (gameState.phase !== "all-in-negotiation") {
+        const newState: NormalGameState = {
+          ...gameState,
+          phase: "all-in-negotiation",
+          allInNegotiation: {
+            playerIds: unfolded.map(u => u.id),
+            votes: {},
+          }
+        };
+        setGameState(newState);
+        patchNormalRoom(code, { state: toPublicState(newState) }).catch(() => {});
+      }
+      return;
+    }
+  }, [gameState, code, isProcessing, resolveShowdown]);
+
+  // Admin: Finalize all-in negotiation and run board
+  useEffect(() => {
+    if (!isAdminRef.current || !gameState || !code || isProcessing) return;
+    if (gameState.phase !== "all-in-negotiation" || !gameState.allInNegotiation) return;
+
+    const { playerIds, votes } = gameState.allInNegotiation;
+    const votedIds = Object.keys(votes);
+
+    if (votedIds.length >= playerIds.length && playerIds.length >= 2) {
+      // All votes are in
+      // For now, let's take the most common vote or minimum to be safe
+      const voteCounts: Record<number, number> = {};
+      votedIds.forEach(id => {
+        const v = votes[id];
+        voteCounts[v] = (voteCounts[v] || 0) + 1;
+      });
+
+      // Find the vote with most supporters, tie-break to lower N
+      let bestN = 1;
+      let maxVotes = 0;
+      [1, 2, 3].forEach(n => {
+        if ((voteCounts[n] || 0) > maxVotes) {
+          maxVotes = voteCounts[n];
+          bestN = n;
+        }
+      });
+
+      // Execute run out
+      setIsProcessing(true);
+      (async () => {
+        try {
+          // Reveal all hole cards first
+          const revealedSeats = gameState.seats.map(s => ({
+            ...s,
+            revealed: s.status !== 'folded' && s.status !== 'out'
+          }));
+          
+          let s = { ...gameState, seats: revealedSeats } as any;
+          setGameState(s);
+          await patchNormalRoom(code, { state: toPublicState(s) });
+          
+          // Move through streets automatically
+          while (s.street !== "river") {
+            await sleep(2000); // Wait between streets for drama
+            s = advance(s) as any;
+            setGameState(s);
+            await patchNormalRoom(code, { state: toPublicState(s) });
+          }
+          
+          // Resolving showdown automatically after a delay
+          await sleep(2000);
+          await resolveShowdown();
+        } finally {
+          setIsProcessing(false);
+        }
+      })();
+    }
+  }, [gameState, code, isProcessing, resolveShowdown]);
+
+  // Admin: auto-fold on turn timer expiry
+  useEffect(() => {
+    if (!isAdminRef.current || !gameState || !code) return;
+    const toActId = gameState.betting.toActId;
+    if (!toActId) return;
+    const seat = gameState.seats.find((s) => s.id === toActId);
+    if (!seat?.turnDeadline) return;
+
+    const delay = seat.turnDeadline - Date.now() + seat.timeBank;
+    if (delay <= 0) return;
+
+    const timer = setTimeout(() => {
+      if (!gameState) return;
+      const newState = handleAction(gameState, toActId, "fold");
+      setGameState(newState);
+      if (code) {
+        patchNormalRoom(code, {
+          state: toPublicState(newState),
+          pendingAction: null,
+        }).catch(() => {});
+      }
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [gameState, code]);
+
+  // Admin: write state to Firestore when it changes
+  const lastStateRef = useRef<NormalGameState | null>(null);
+  useEffect(() => {
+    if (!isAdminRef.current || !code || !gameState) return;
+    if (lastStateRef.current === gameState) return;
+    lastStateRef.current = gameState;
+    patchNormalRoom(code, { state: toPublicState(gameState) }).catch(() => {});
+  }, [gameState, code]);
+
   return {
     gameState,
     startNewHand,
@@ -312,9 +484,4 @@ export function useNormalGame(
     kickPlayer,
     isProcessing,
   };
-}
-
-function toPublicState(gs: NormalGameState) {
-  const { deck, ...rest } = gs;
-  return { ...rest, deckCount: deck.length };
 }

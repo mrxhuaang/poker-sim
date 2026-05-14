@@ -256,6 +256,34 @@ function PhoneGameView({
         </div>
       ) : null}
 
+      {/* All-in Negotiation */}
+      {room.state?.phase === 'all-in-negotiation' && !mySeat.folded && (
+        <div className="animate-in zoom-in fade-in duration-300 px-4 py-5 rounded-3xl bg-emerald-500/10 ring-1 ring-emerald-400/40 text-center flex flex-col gap-4">
+          <div>
+            <h3 className="text-lg font-bold text-emerald-100">¡All-in!</h3>
+            <p className="text-xs text-emerald-200/60 uppercase tracking-widest mt-1">¿Cuántas veces quieres tirar el resto?</p>
+          </div>
+          <div className="flex items-center gap-2 justify-center">
+            {[1, 2, 3].map(n => (
+              <button
+                key={n}
+                onClick={() => {
+                  phoneSetSeatFlag(code, mySeat.id, 'vote' as any, n);
+                }}
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg transition btn-press ${
+                  (room.state?.allInNegotiation?.votes?.[mySeat.id] === n)
+                  ? 'bg-emerald-500 text-emerald-950 shadow-lg shadow-emerald-500/30'
+                  : 'bg-white/5 text-zinc-300 hover:bg-white/10 ring-1 ring-white/10'
+                }`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-zinc-500">La mesa esperará a que todos los implicados elijan.</p>
+        </div>
+      )}
+
       <section>
         <div className="flex items-center justify-between">
           <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">

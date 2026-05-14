@@ -6,14 +6,18 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isHost(code) {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/normalRooms/$(code)).data.hostUid == request.auth.uid;
+    }
+
+    // Legacy presencial rooms
     match /rooms/{code} {
       allow read: if isSignedIn();
       allow create: if isSignedIn()
                     && request.resource.data.hostUid == request.auth.uid;
-      // Host can update anything; other signed-in users only seat flags they own
       allow update: if isSignedIn() && (
         resource.data.hostUid == request.auth.uid ||
-        // partial seat update by phone for their own seat
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['state'])
       );
 
@@ -23,7 +27,6 @@ service cloud.firestore {
       }
 
       match /holes/{seatId} {
-        // host can read all; owner can read theirs
         allow read: if isSignedIn() && (
           resource.data.ownerUid == request.auth.uid ||
           get(/databases/$(database)/documents/rooms/$(code)).data.hostUid == request.auth.uid
@@ -31,6 +34,82 @@ service cloud.firestore {
         allow write: if isSignedIn() && (
           get(/databases/$(database)/documents/rooms/$(code)).data.hostUid == request.auth.uid
         );
+      }
+    }
+
+    // Normal + Tournament rooms
+    match /normalRooms/{code} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+                    && request.resource.data.hostUid == request.auth.uid
+                    && request.resource.data.adminUid == request.auth.uid;
+      // Host owns config/state/result/locked/theme/tournament/pendingRebuys.
+      // Other players can only write a pendingAction whose seatId is their own uid.
+      allow update: if isSignedIn() && (
+        resource.data.hostUid == request.auth.uid ||
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingAction'])
+          && request.resource.data.pendingAction.seatId == request.auth.uid
+        ) ||
+        // Voting on all-in negotiation: only own vote key
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['state'])
+      );
+
+      match /lobby/{uid} {
+        allow read: if isSignedIn();
+        // Host can create/delete any lobby entry (for approvals/kicks).
+        // Players can only patch their own entry (name, seed, sittingOut).
+        allow create: if isSignedIn() && (
+          request.auth.uid == uid || isHost(code)
+        );
+        allow update: if isSignedIn() && request.auth.uid == uid
+                      && request.resource.data.uid == uid
+                      && request.resource.data.chips == resource.data.chips;
+        allow update, delete: if isHost(code);
+      }
+
+      match /holes/{seatId} {
+        allow read: if isSignedIn() && (
+          resource.data.ownerUid == request.auth.uid || isHost(code)
+        );
+        allow write: if isHost(code);
+      }
+
+      match /stackRequests/{uid} {
+        allow read: if isSignedIn();
+        allow create, update: if isSignedIn() && request.auth.uid == uid
+          && request.resource.data.uid == uid
+          && request.resource.data.requestedStack is number
+          && request.resource.data.requestedStack > 0
+          && request.resource.data.requestedStack <= 1000000;
+        // Host resolves requests; player can dismiss their own
+        allow update, delete: if isHost(code) || (isSignedIn() && request.auth.uid == uid);
+      }
+
+      match /chat/{msgId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn()
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() <= 200
+          && request.resource.data.text.size() > 0;
+        // No edits/deletes by players; host can purge
+        allow update, delete: if isHost(code);
+      }
+
+      match /reactions/{rId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn()
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.emoji is string
+          && request.resource.data.emoji.size() <= 8;
+        allow delete: if isHost(code);
+      }
+
+      match /hands/{hId} {
+        allow read: if isSignedIn();
+        // Only host writes hand records
+        allow create, update, delete: if isHost(code);
       }
     }
   }

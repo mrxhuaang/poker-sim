@@ -65,7 +65,13 @@ export type NormalGameState = {
     | "turn"
     | "river"
     | "showdown"
-    | "between-hands";
+    | "between-hands"
+    | "all-in-negotiation";
+  allInNegotiation?: {
+    playerIds: string[];
+    votes: Record<string, number>; // uid -> number of runs requested
+    agreedN?: number;
+  };
 };
 
 export type PotResult = {

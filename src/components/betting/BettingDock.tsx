@@ -1,0 +1,95 @@
+"use client";
+import type { ReactNode } from "react";
+import { Avatar } from "@/components/players/Avatar";
+import { TurnTimer } from "@/components/betting/TurnTimer";
+import { BettingControls } from "@/components/betting/BettingControls";
+import type {
+  BettingAction,
+  BettingRound,
+  NormalSeat,
+} from "@/lib/betting";
+import { formatChips } from "@/lib/betting";
+import type { Card } from "@/lib/poker";
+
+type Props = {
+  seat: NormalSeat | null;
+  name: string;
+  seed: string;
+  betting: BettingRound | null;
+  holeCards: [Card, Card] | null;
+  isMyTurn: boolean;
+  turnTimeMs: number;
+  hasResult: boolean;
+  onAction: (action: BettingAction, amount?: number) => void;
+  extra?: ReactNode;
+};
+
+export function BettingDock({
+  seat,
+  name,
+  seed,
+  betting,
+  holeCards,
+  isMyTurn,
+  turnTimeMs,
+  hasResult,
+  onAction,
+  extra,
+}: Props) {
+  if (!seat && !name) return null;
+
+  return (
+    <div className="w-[min(420px,92vw)] bg-zinc-900/95 backdrop-blur-xl rounded-[28px] ring-1 ring-white/10 p-5 shadow-2xl overflow-hidden relative">
+      {isMyTurn && (
+        <div className="absolute inset-0 bg-emerald-500/5 animate-pulse pointer-events-none" />
+      )}
+
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <Avatar seed={seed} size={36} />
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-black text-white uppercase tracking-tight truncate">
+              {name}
+            </span>
+            {seat && (
+              <span className="text-[11px] text-emerald-400 font-mono font-bold leading-none">
+                {formatChips(seat.chips)}
+              </span>
+            )}
+          </div>
+        </div>
+        {seat && seat.bet > 0 && (
+          <div className="flex flex-col items-end">
+            <span className="text-[9px] uppercase tracking-widest text-zinc-500 font-black">
+              Apuesta
+            </span>
+            <span className="text-sm font-black text-amber-300 tabular-nums">
+              {formatChips(seat.bet)}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {seat && betting && isMyTurn && seat.status === "active" && !hasResult && (
+        <div className="animate-in fade-in zoom-in duration-300">
+          {seat.turnDeadline && (
+            <div className="mb-3">
+              <TurnTimer
+                deadline={seat.turnDeadline}
+                turnTime={turnTimeMs}
+                timeBank={seat.timeBank}
+              />
+            </div>
+          )}
+          <BettingControls
+            seat={seat}
+            betting={betting}
+            onAction={onAction}
+          />
+        </div>
+      )}
+
+      {extra}
+    </div>
+  );
+}
