@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { ArrowRight, Loader2 } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
 type Props = {
   defaultName?: string;
@@ -20,9 +21,14 @@ export function JoinWithStack({
   const [name, setName] = useState(defaultName);
   const [stack, setStack] = useState(suggestedStack);
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const nameError = submitted && !name.trim();
+  const stackError = submitted && stack <= 0;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setSubmitted(true);
     if (!name.trim() || stack <= 0 || locked) return;
     setLoading(true);
     try {
@@ -62,8 +68,13 @@ export function JoinWithStack({
             maxLength={20}
             autoFocus={!isRebuy}
             disabled={loading || locked}
-            className="px-3 py-2.5 rounded-xl bg-black/40 ring-1 ring-white/10 text-zinc-100 text-sm outline-none focus:ring-emerald-400/40 disabled:opacity-40"
+            className={`px-3 py-2.5 rounded-xl bg-black/40 ring-1 text-zinc-100 text-sm outline-none disabled:opacity-40 ${nameError ? "ring-rose-400/60 focus:ring-rose-400/80" : "ring-white/10 focus:ring-emerald-400/40"}`}
           />
+          {nameError && (
+            <span className="flex items-center gap-1 text-[11px] text-rose-400">
+              <AlertCircle className="w-3 h-3 flex-shrink-0" /> El nombre es requerido
+            </span>
+          )}
         </label>
       )}
 
@@ -94,6 +105,11 @@ export function JoinWithStack({
             </button>
           )}
         </div>
+        {stackError && (
+          <span className="flex items-center gap-1 text-[11px] text-rose-400">
+            <AlertCircle className="w-3 h-3 flex-shrink-0" /> Ingresa un monto mayor a 0
+          </span>
+        )}
         <p className="text-[11px] text-zinc-600">
           El dueño puede ajustar el monto antes de aceptar.
         </p>
