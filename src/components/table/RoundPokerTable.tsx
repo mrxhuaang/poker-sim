@@ -424,13 +424,17 @@ export function RoundPokerTable({
         const isSelf = !!selfUid && seat.id === selfUid;
         const useBank = timeBankByUid ? timeBankByUid[seat.id] !== false : true;
 
-        // Bet chip position — towards center
+        // Bet chip position — towards center, nudged tangentially so it never
+        // sits directly under the hole cards (which are centered on the seat).
+        // Without the tangential push the bottom-center self seat had cards and
+        // chips stacked on the same x, causing the overlap.
         const dx_center = 50 - pos.x;
         const dy_center = 50 - pos.y;
         const dist = Math.sqrt(dx_center * dx_center + dy_center * dy_center) || 1;
         const betDist = 13;
-        const bx = pos.x + (dx_center / dist) * betDist;
-        const by = pos.y + (dy_center / dist) * (betDist * 0.75);
+        const betTangential = 9;
+        const bx = pos.x + (dx_center / dist) * betDist + (dy_center / dist) * betTangential;
+        const by = pos.y + (dy_center / dist) * (betDist * 0.75) - (dx_center / dist) * betTangential;
 
         // Dealer button position — moved more tangentially so it doesn't overlap cards
         const dDist = 10;
@@ -454,6 +458,15 @@ export function RoundPokerTable({
 
         const toast = seatToasts[seat.id];
 
+        // Hole card placement depends on the seat's zone so cards never clip the
+        // top edge nor collide with the seat's own chips/avatar:
+        // - Top seats (small pos.y): cards drop BELOW the panel, toward center.
+        // - Everyone else: cards float ABOVE the avatar (classic look).
+        const cardsBelow = pos.y < 45;
+        const cardTransform = cardsBelow
+          ? "translate(-50%, 60px)"
+          : "translate(-50%, calc(-100% - 54px))";
+
         return (
           <React.Fragment key={seat.id}>
             {/* Hole cards — rendered outside overflow:hidden, z-40 */}
@@ -463,7 +476,7 @@ export function RoundPokerTable({
                 style={{
                   left: `${pos.x}%`,
                   top: `${pos.y}%`,
-                  transform: "translate(-50%, calc(-100% - 54px))",
+                  transform: cardTransform,
                 }}
               >
                 {/* Equity Tag */}
