@@ -24,7 +24,7 @@ type Props = {
   lastAction?: { seatId: string; action: string; amount?: number; ts: number };
   timeBankByUid?: Record<string, boolean>;
   turnTimeMs?: number;
-  onSit?: () => void;
+  onSit?: (slotIndex: number) => void;
   onToggleAway?: () => void;
   amSittingOut?: boolean;
   presenceMap?: Record<string, boolean>;

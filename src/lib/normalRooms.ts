@@ -54,6 +54,8 @@ export type NormalLobbyPlayer = {
   useTimeBank?: boolean;
   // Public RSA-OAEP key (JWK string) used to encrypt this player's hole cards.
   pubKey?: string;
+  // Physical slot preference (0-8). Set when clicking a specific SIT button.
+  preferredSlot?: number;
 };
 
 export type NormalRoomDoc = {
@@ -184,6 +186,7 @@ export async function approveJoin(
   name: string,
   seed: string,
   chips: number,
+  preferredSlot?: number,
 ): Promise<void> {
   const db = getDb();
   const player: NormalLobbyPlayer = {
@@ -193,8 +196,18 @@ export async function approveJoin(
     joinedAt: Date.now(),
     chips,
     sittingOut: false,
+    ...(preferredSlot !== undefined ? { preferredSlot } : {}),
   };
   await setDoc(doc(db, "normalRooms", code, "lobby", uid), player);
+}
+
+export async function setPlayerPreferredSlot(
+  code: string,
+  uid: string,
+  preferredSlot: number,
+): Promise<void> {
+  const db = getDb();
+  await updateDoc(doc(db, "normalRooms", code, "lobby", uid), { preferredSlot });
 }
 
 export async function patchLobbyPlayer(
@@ -354,5 +367,6 @@ export function lobbyToSeats(
     status: p.sittingOut ? ("sitting-out" as const) : ("active" as const),
     timeBank: config.timeBankInit,
     turnDeadline: null,
+    ...(p.preferredSlot !== undefined ? { preferredSlot: p.preferredSlot } : {}),
   }));
 }

@@ -36,6 +36,8 @@ export type NormalSeat = {
   status: SeatStatus;
   timeBank: number;
   turnDeadline: number | null;
+  // Physical slot preference (0-8 around the ellipse, independent of view rotation).
+  preferredSlot?: number;
 };
 
 export type BettingRound = {

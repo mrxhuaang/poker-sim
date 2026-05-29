@@ -17,7 +17,9 @@ import { useChat } from "@/hooks/useChat";
 import { useReactions } from "@/hooks/useReactions";
 import { ReactionBar } from "@/components/reactions/ReactionBar";
 import { JoinWithStack } from "@/components/lobby/JoinWithStack";
+import { SeatPicker } from "@/components/lobby/SeatPicker";
 import { Avatar } from "@/components/players/Avatar";
+import { setPlayerPreferredSlot } from "@/lib/normalRooms";
 import {
   postPlayerAction,
   patchLobbyPlayer,
@@ -332,12 +334,38 @@ export default function PlayNormalPage() {
       </div>
     ) : showMuckUI;
 
+  // Build occupant map for SeatPicker — lobby players with a preferredSlot
+  const seatOccupants = useMemo(() => {
+    const map: Record<number, { uid: string; name: string; seed: string }> = {};
+    for (const p of lobby) {
+      if (p.preferredSlot !== undefined) {
+        map[p.preferredSlot] = { uid: p.uid, name: p.name, seed: p.seed };
+      }
+    }
+    return map;
+  }, [lobby]);
+
+  const myPreferredSlot = myLobbyEntry?.preferredSlot;
+
+  async function handlePickSeat(slot: number) {
+    if (!code || !uid) return;
+    await setPlayerPreferredSlot(code, uid, slot).catch(() => {});
+  }
+
   const centerOverlay = (
     <>
       {!gs && (
-        <div className="px-6 py-3 rounded-2xl bg-zinc-900/80 backdrop-blur-md ring-1 ring-white/10 text-zinc-400 text-sm font-bold uppercase tracking-widest shadow-2xl flex items-center gap-2">
-          <Clock className="w-4 h-4 text-emerald-500 animate-pulse" />
-          Esperando al host…
+        <div className="flex flex-col items-center gap-4 px-4 py-5 rounded-2xl bg-zinc-900/90 backdrop-blur-md ring-1 ring-white/10 shadow-2xl">
+          <SeatPicker
+            myUid={uid ?? ""}
+            myPreferredSlot={myPreferredSlot}
+            occupants={seatOccupants}
+            onPick={handlePickSeat}
+          />
+          <div className="flex items-center gap-2 text-zinc-500 text-[11px] font-bold uppercase tracking-widest">
+            <Clock className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
+            Esperando al host…
+          </div>
         </div>
       )}
       {result && gs && (

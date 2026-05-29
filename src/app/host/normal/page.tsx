@@ -179,9 +179,12 @@ export default function HostNormalPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState?.phase, gameState?.betting.handNum]);
 
-  function handleJoinAsHost() {
+  function handleJoinAsHost(slotIndex?: number) {
     if (!uid || !code) return;
-    approveJoin(code, uid, "Host", randomSeed(), config.startingStack).catch(() => {});
+    // Convert visual slot to physical slot (remove current rotationOffset — host page
+    // doesn't track rotationOffset so we use slotIndex as physical directly, and
+    // the RoundPokerTable rotate button will shift the view as needed).
+    approveJoin(code, uid, "Host", randomSeed(), config.startingStack, slotIndex).catch(() => {});
   }
 
   if (loading || !code) {
@@ -216,7 +219,7 @@ export default function HostNormalPage() {
           {!lobby.some((p) => p.uid === uid) && (
             <button
               type="button"
-              onClick={handleJoinAsHost}
+              onClick={() => handleJoinAsHost()}
               className="px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-300 text-[11px] font-bold uppercase tracking-widest transition btn-press"
             >
               Unirme como jugador

@@ -173,9 +173,9 @@ export default function HostTorneoPage() {
     if (code) patchNormalRoom(code, { config: newConfig }).catch(() => {});
   }
 
-  function handleJoinAsHost() {
+  function handleJoinAsHost(slotIndex?: number) {
     if (!uid || !code) return;
-    approveJoin(code, uid, "Host", randomSeed(), config.startingStack).catch(() => {});
+    approveJoin(code, uid, "Host", randomSeed(), config.startingStack, slotIndex).catch(() => {});
   }
 
   function togglePause() {
@@ -232,7 +232,7 @@ export default function HostTorneoPage() {
           {!lobby.some((p) => p.uid === uid) && (
             <button
               type="button"
-              onClick={handleJoinAsHost}
+              onClick={() => handleJoinAsHost()}
               className="px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-300 text-[11px] font-bold uppercase tracking-widest transition btn-press"
             >
               Unirme como jugador
