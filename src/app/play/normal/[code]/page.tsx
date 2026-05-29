@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { useParams } from "next/navigation";
-import { Clock, Trophy, X as CloseIcon, Menu } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { Clock, LogOut, Trophy, X as CloseIcon, Menu } from "lucide-react";
 
 // Importar con ssr:false porque VoicePanel usa navigator.mediaDevices,
 // RTCPeerConnection y AudioContext que no existen en Node.
@@ -25,6 +25,7 @@ import {
   patchLobbyPlayer,
   postPlayerVote,
   lobbyToSeats,
+  kickFromLobby,
 } from "@/lib/normalRooms";
 import {
   submitStackRequest,
@@ -62,6 +63,7 @@ const EMPTY_BETTING: BettingRound = {
 
 export default function PlayNormalPage() {
   const params = useParams<{ code: string }>();
+  const router = useRouter();
   const code = params.code?.toUpperCase() ?? null;
   const { uid, loading } = useAuth();
   const [mySeed] = useState(() => Math.random().toString(36).slice(2));
@@ -220,6 +222,15 @@ export default function PlayNormalPage() {
     if (!uid || !code) return;
     await dismissStackRequest(code, uid);
     setMyRequest(null);
+  }
+
+  async function handleLeave() {
+    if (!uid || !code) return;
+    if (!confirm("¿Salir de la sala? Perderás tu lugar en esta mano.")) return;
+    try {
+      await kickFromLobby(code, uid);
+    } catch { /* ignore */ }
+    router.push("/join");
   }
 
   if (loading || room === undefined) {
@@ -584,6 +595,15 @@ export default function PlayNormalPage() {
                 ))}
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={handleLeave}
+              className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 ring-1 ring-rose-400/20 text-rose-300 text-sm font-bold transition btn-press"
+            >
+              <LogOut className="w-4 h-4" />
+              Salir de la sala
+            </button>
           </div>
         </div>
       )}
