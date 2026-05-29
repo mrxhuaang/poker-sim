@@ -33,8 +33,7 @@ import { HostDock } from "@/components/host/HostDock";
 import { HostNotifications } from "@/components/host/HostNotifications";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { BettingDock } from "@/components/betting/BettingDock";
-import { AllInVoteModal } from "@/components/betting/AllInVoteModal";
-import { AllInVoteChip } from "@/components/betting/AllInVoteChip";
+// AllInVoteModal + AllInVoteChip removed — run-it-N pending reimplementation
 import { postPlayerVote } from "@/lib/normalRooms";
 
 const EMPTY_BETTING: BettingRound = {
@@ -56,8 +55,6 @@ export default function HostNormalPage() {
   const [code, setCode] = useState<string | null>(null);
   const [holeCards] = useState<Record<string, [Card, Card]>>({});
   const [dockOpen, setDockOpen] = useState(true);
-  const [voteModalOpen, setVoteModalOpen] = useState(false);
-  const lastVoteHandRef = useRef<number>(-1);
 
   const room = useNormalRoom(code);
   const lobby = useNormalLobby(code);
@@ -159,25 +156,6 @@ export default function HostNormalPage() {
 
   const myUseTimeBank = myLobbyEntry?.useTimeBank !== false;
 
-  // Auto-open vote modal once per all-in hand, only for involved unvoted host player.
-  useEffect(() => {
-    const gs = gameState;
-    if (!gs || gs.phase !== "all-in-negotiation" || !gs.allInNegotiation) {
-      if (voteModalOpen) setVoteModalOpen(false);
-      return;
-    }
-    const handNum = gs.betting.handNum;
-    if (lastVoteHandRef.current === handNum) return;
-    const involved = uid ? gs.allInNegotiation.playerIds.includes(uid) : false;
-    const alreadyVoted = uid ? gs.allInNegotiation.votes[uid] != null : false;
-    if (involved && !alreadyVoted) {
-      lastVoteHandRef.current = handNum;
-      setVoteModalOpen(true);
-    } else {
-      lastVoteHandRef.current = handNum;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameState?.phase, gameState?.betting.handNum]);
 
   function handleJoinAsHost(slotIndex?: number) {
     if (!uid || !code) return;
@@ -344,20 +322,6 @@ export default function HostNormalPage() {
         gameState={gameState}
         result={result}
         onClickRequest={() => setDockOpen(true)}
-      />
-      <AllInVoteChip
-        gameState={gameState}
-        selfUid={uid}
-        onClick={() => setVoteModalOpen(true)}
-      />
-      <AllInVoteModal
-        gameState={gameState}
-        selfUid={uid}
-        open={voteModalOpen}
-        onClose={() => setVoteModalOpen(false)}
-        onVote={(n) => {
-          if (code && uid) postPlayerVote(code, uid, n).catch(() => {});
-        }}
       />
     </>
   );

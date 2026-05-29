@@ -47,7 +47,7 @@ import { HostNotifications } from "@/components/host/HostNotifications";
 import { TournamentHUD } from "@/components/host/TournamentHUD";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { BettingDock } from "@/components/betting/BettingDock";
-import { AllInVoteModal } from "@/components/betting/AllInVoteModal";
+// AllInVoteModal removed — run-it-N pending reimplementation
 import { postPlayerVote } from "@/lib/normalRooms";
 
 const DEFAULT_TORNEO_CONFIG: RoomConfig = {
@@ -359,13 +359,6 @@ export default function HostTorneoPage() {
         gameState={gameState}
         result={result}
         onClickRequest={() => setDockOpen(true)}
-      />
-      <AllInVoteModal
-        gameState={gameState}
-        selfUid={uid}
-        onVote={(n) => {
-          if (code && uid) postPlayerVote(code, uid, n).catch(() => {});
-        }}
       />
     </>
   );
