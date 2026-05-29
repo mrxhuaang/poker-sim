@@ -32,7 +32,8 @@ interface RoundPokerTableProps {
   timeBankByUid?: Record<string, boolean>;
   turnTimeMs?: number;
   // Optional callbacks for empty-seat Sit button and own-seat Away toggle.
-  onSit?: () => void;
+  // slotIndex is the visual slot (0-8) that was clicked.
+  onSit?: (slotIndex: number) => void;
   onToggleAway?: () => void;
   amSittingOut?: boolean;
   presenceMap?: Record<string, boolean>;
@@ -276,38 +277,60 @@ export function RoundPokerTable({
     });
   }, []);
 
-  // Distribute N players evenly around the 9 slots, then rotate so self lands at slot 0.
-  // This is the key fix: previously with N=2 the seats clustered at slots 0+1 (both at bottom).
+  // Slot computation:
+  // 1. Players with preferredSlot go directly to that slot (shifted by rotationOffset).
+  // 2. Players without preferredSlot auto-distribute evenly into remaining empty slots.
+  // rotationOffset is a LOCAL view shift that applies to ALL slots uniformly, so
+  // the rotate button now works even when selfUid is present.
   const slots = useMemo(() => {
     const out: (NormalSeat | null)[] = Array(MAX_SEATS).fill(null);
     const n = seats.length;
     if (n === 0) return out;
 
-    // Base slot for seats[i]: spread evenly across MAX_SEATS positions.
-    const baseSlots = seats.map((_, i) => Math.round((i * MAX_SEATS) / n) % MAX_SEATS);
+    const unplaced: NormalSeat[] = [];
 
-    // Find self's base slot so we can shift everyone so self lands at slot 0.
-    const myIdx = selfUid ? seats.findIndex((s) => s.id === selfUid) : -1;
-    const baseShift = (myIdx >= 0 ? baseSlots[myIdx] : -rotationOffset) % MAX_SEATS;
-
-    for (let i = 0; i < n; i++) {
-      const slotIdx = (((baseSlots[i] - baseShift) % MAX_SEATS) + MAX_SEATS) % MAX_SEATS;
-      // Guard against rare collisions when round() lands two on the same slot.
-      if (out[slotIdx] === null) out[slotIdx] = seats[i];
-      else {
-        // Fallback: next available slot
-        for (let off = 1; off < MAX_SEATS; off++) {
-          const alt = (slotIdx + off) % MAX_SEATS;
-          if (out[alt] === null) { out[alt] = seats[i]; break; }
+    // Phase 1: place seats that have a preferred slot
+    for (const seat of seats) {
+      if (seat.preferredSlot !== undefined) {
+        const visual = ((seat.preferredSlot + rotationOffset) % MAX_SEATS + MAX_SEATS) % MAX_SEATS;
+        if (out[visual] === null) {
+          out[visual] = seat;
+        } else {
+          unplaced.push(seat); // collision — handled in phase 2
         }
+      } else {
+        unplaced.push(seat);
       }
     }
-    return out;
-  }, [seats, selfUid, rotationOffset]);
 
+    // Phase 2: distribute unplaced seats evenly across remaining empty slots
+    if (unplaced.length > 0) {
+      const empty = Array.from({ length: MAX_SEATS }, (_, i) => i).filter((i) => out[i] === null);
+      unplaced.forEach((seat, idx) => {
+        const target = empty[Math.round((idx * empty.length) / unplaced.length) % empty.length];
+        if (out[target] === null) {
+          out[target] = seat;
+        } else {
+          for (let off = 1; off < empty.length; off++) {
+            const alt = empty[(empty.indexOf(target) + off) % empty.length];
+            if (out[alt] === null) { out[alt] = seat; break; }
+          }
+        }
+      });
+    }
+
+    return out;
+  }, [seats, rotationOffset]);
+
+  // Rotate view so self lands at slot 0 (bottom-center).
+  // If self has a preferredSlot, compute exact offset. Otherwise cycle.
   function rotateSelfToCenter() {
-    // Manual rotation cycles through the seat array (useful when no selfUid yet).
-    setRotationOffset((v) => (v + 1) % MAX_SEATS);
+    const mySeat = selfUid ? seats.find((s) => s.id === selfUid) : undefined;
+    if (mySeat?.preferredSlot !== undefined) {
+      setRotationOffset(((MAX_SEATS - mySeat.preferredSlot) % MAX_SEATS + MAX_SEATS) % MAX_SEATS);
+    } else {
+      setRotationOffset((v) => (v + 1) % MAX_SEATS);
+    }
   }
 
   const selfInSeats = !!(selfUid && seats.some((s) => s.id === selfUid));
@@ -400,7 +423,7 @@ export function RoundPokerTable({
               {canSit ? (
                 <button
                   type="button"
-                  onClick={onSit}
+                  onClick={() => onSit!(i)}
                   className="pointer-events-auto group flex flex-col items-center gap-1.5 cursor-pointer"
                 >
                   <div className="w-12 h-12 rounded-full bg-zinc-900/60 ring-2 ring-dashed ring-white/15 group-hover:ring-emerald-400/60 group-hover:bg-emerald-500/10 backdrop-blur-sm transition flex items-center justify-center">
