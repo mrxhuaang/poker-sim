@@ -37,6 +37,7 @@ type Props = {
   centerOverlay?: ReactNode;
   reactions?: Reaction[];
   roomBg?: string;
+  isSpectator?: boolean;
 };
 
 export function TableShell({
@@ -67,10 +68,17 @@ export function TableShell({
   centerOverlay,
   reactions,
   roomBg,
+  isSpectator,
 }: Props) {
   const bg = getRoomBg(roomBg);
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden select-none" style={{ background: bg.gradient }}>
+      {isSpectator && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] px-3 py-1.5 rounded-full bg-white/[0.08] ring-1 ring-white/15 backdrop-blur-md text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-300 flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-white/70 animate-pulse" />
+          Modo espectador
+        </div>
+      )}
       {/* Mesa */}
       <main className="relative flex-1 flex items-center justify-center p-2 sm:p-4">
         <div className="w-full h-full max-h-[88vh] flex items-center justify-center">
