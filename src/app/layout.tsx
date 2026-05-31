@@ -22,6 +22,8 @@ export const metadata: Metadata = {
     shortcut: "/favicon.svg",
     apple: "/favicon.svg",
   },
+  manifest: "/manifest.json",
+  themeColor: "#06070a",
 };
 
 export default function RootLayout({
