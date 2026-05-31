@@ -47,6 +47,7 @@ import { OptionsMenu } from "@/components/settings/OptionsMenu";
 import { HostSettings } from "@/components/settings/HostSettings";
 import { HostNotifications } from "@/components/host/HostNotifications";
 import { TournamentHUD } from "@/components/host/TournamentHUD";
+import { TournamentPodium } from "@/components/host/TournamentPodium";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { BettingDock } from "@/components/betting/BettingDock";
 // AllInVoteModal removed — run-it-N pending reimplementation
@@ -87,6 +88,7 @@ export default function HostTorneoPage() {
   const [tournament, setTournament] = useState<TournamentState>(
     initTournamentState(),
   );
+  const [showPodium, setShowPodium] = useState(false);
 
   const room = useNormalRoom(code);
   const lobby = useNormalLobby(code);
@@ -146,6 +148,15 @@ export default function HostTorneoPage() {
     patchNormalRoom(code, { playerCount: lobby.length }).catch(() => {});
   }, [code, uid, room?.hostUid, lobby.length]);
 
+  // Detect tournament end: started + only 1 player with chips remaining
+  useEffect(() => {
+    if (!tournament.started || showPodium) return;
+    const active = gameState?.seats.filter((s) => s.chips > 0) ?? [];
+    if (active.length === 1 && (gameState?.seats.length ?? 0) > 1) {
+      setShowPodium(true);
+    }
+  }, [tournament.started, showPodium, gameState?.seats]);
+
   const myLobbyEntry = useMemo(() => lobby.find((p) => p.uid === uid), [lobby, uid]);
   const mySeat = useMemo(
     () => gameState?.seats.find((s) => s.id === uid) ?? null,
@@ -153,6 +164,20 @@ export default function HostTorneoPage() {
   );
   const isMyTurn = !!(gameState && gameState.betting.toActId === uid);
   const isAdmin = !!(uid && room?.adminUid === uid);
+
+  // Build podium ranking: winner first, then knockouts in reverse order (last out = 2nd)
+  const podiumRanking = useMemo(() => {
+    if (!gameState) return [];
+    const winner = gameState.seats.find((s) => s.chips > 0);
+    const allSeats = gameState.seats;
+    // knockouts: last element = most recently knocked out = highest finish
+    const knockedOut = [...tournament.knockouts].reverse();
+    const ordered = [
+      ...(winner ? [winner] : []),
+      ...knockedOut.map((id) => allSeats.find((s) => s.id === id)).filter(Boolean),
+    ] as typeof allSeats;
+    return ordered.map((s) => ({ id: s.id, name: s.name, seed: s.seed ?? "" }));
+  }, [showPodium, gameState, tournament.knockouts]);
 
   const config: RoomConfig = room?.config ?? DEFAULT_TORNEO_CONFIG;
   const theme: TableThemeId = (room?.theme as TableThemeId) ?? "sapphire";
@@ -239,7 +264,7 @@ export default function HostTorneoPage() {
               type="button"
               disabled={!canDeal || isProcessing}
               onClick={handleStartTournament}
-              className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-amber-700 hover:bg-amber-600 disabled:opacity-30 text-amber-100 font-black text-sm uppercase tracking-widest transition shadow-2xl shadow-amber-700/25 btn-press animate-in zoom-in fade-in duration-500"
+              className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-zinc-100 hover:bg-white disabled:opacity-30 text-zinc-900 font-black text-sm uppercase tracking-widest transition shadow-2xl shadow-black/40 btn-press animate-in zoom-in fade-in duration-500"
             >
               <Play className="w-5 h-5 fill-current" /> Iniciar torneo
             </button>
@@ -258,12 +283,12 @@ export default function HostTorneoPage() {
 
       {result && gameState && (
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 fade-in duration-500">
-          <div className="px-8 py-4 rounded-[28px] bg-zinc-900/95 backdrop-blur-xl ring-2 ring-amber-400/50 shadow-[0_20px_80px_-20px_rgba(251,191,36,0.5)] flex flex-col items-center">
-            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-400 mb-1">
+          <div className="px-8 py-4 rounded-[28px] bg-zinc-900/95 backdrop-blur-xl ring-2 ring-white/20 shadow-[0_20px_80px_-20px_rgba(255,255,255,0.15)] flex flex-col items-center">
+            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-400 mb-1">
               Mano terminada
             </span>
             <h4 className="text-xl font-black text-white flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-amber-400" />
+              <Trophy className="w-5 h-5 text-zinc-300" />
               {result.winners
                 .map((id) => gameState.seats.find((s) => s.id === id)?.name ?? id)
                 .join(" & ")}
@@ -387,6 +412,12 @@ export default function HostTorneoPage() {
         result={result}
         onClickRequest={() => setDockOpen(true)}
       />
+      {showPodium && (
+        <TournamentPodium
+          ranking={podiumRanking}
+          onClose={() => { setShowPodium(false); window.location.href = "/"; }}
+        />
+      )}
     </>
   );
 }
