@@ -109,17 +109,14 @@ export function PillNav({
               aria-label={logoAlt}
               onMouseEnter={handleLogoEnter}
               ref={logoRef}
-              className="inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/[0.08] bg-white/[0.06] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-[background-color,transform] duration-300 ease-out outline-none hover:bg-white/[0.1] active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/40"
-              style={{
-                width: "42px",
-                height: "42px",
-              }}
+              className="inline-flex shrink-0 items-center justify-center transition-[opacity,transform] duration-300 ease-out outline-none hover:opacity-80 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/40"
             >
               <img
                 src={logo}
                 alt={logoAlt}
                 ref={logoImgRef}
-                className="block h-full w-full object-contain"
+                className="block object-contain"
+                style={{ height: "32px", width: "auto", mixBlendMode: "screen" }}
               />
             </Link>
           ) : (
@@ -128,17 +125,14 @@ export function PillNav({
               aria-label={logoAlt}
               onMouseEnter={handleLogoEnter}
               ref={logoRef}
-              className="inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/[0.08] bg-white/[0.06] p-2 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/40"
-              style={{
-                width: "42px",
-                height: "42px",
-              }}
+              className="inline-flex shrink-0 items-center justify-center transition-[opacity,transform] duration-300 ease-out outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/40"
             >
               <img
                 src={logo}
                 alt={logoAlt}
                 ref={logoImgRef}
-                className="block h-full w-full object-contain"
+                className="block object-contain"
+                style={{ height: "32px", width: "auto", mixBlendMode: "screen" }}
               />
             </a>
           )}
