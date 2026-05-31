@@ -32,6 +32,7 @@ export function useVoiceRoom(
   displayName: string,
   seed: string,
   enabled: boolean,
+  micDeviceId?: string,
 ): UseVoiceRoomResult {
   const [participants, setParticipants] = useState<
     Record<string, VoiceParticipant>
@@ -63,7 +64,7 @@ export function useVoiceRoom(
     remoteStreams,
     initiateCall,
     peerConnectionStates,
-  } = useVoiceWebRTC(callId, uid, channel, peerUidsKey);
+  } = useVoiceWebRTC(callId, uid, channel, peerUidsKey, micDeviceId);
 
   // 1. Crear canal Presence + Broadcast.
   useEffect(() => {

@@ -4,6 +4,7 @@ import { Headphones, Mic, MicOff, PhoneOff, Volume2, VolumeX } from "lucide-reac
 import { Avatar } from "@/components/players/Avatar";
 import { useVoiceRoom, type VoiceParticipant } from "@/hooks/useVoiceRoom";
 import { useAudioLevel } from "@/hooks/useAudioLevel";
+import { useMicDevice } from "@/hooks/useMicDevice";
 import { RemoteAudio } from "./RemoteAudio";
 
 export default function VoicePanel({
@@ -24,6 +25,7 @@ export default function VoicePanel({
   // Guard so we only auto-mute once after localStream becomes available.
   const listenOnlyApplied = useRef(false);
 
+  const { micDeviceId } = useMicDevice();
   const {
     participants,
     localStream,
@@ -31,7 +33,7 @@ export default function VoicePanel({
     peerConnectionStates,
     isMuted,
     toggleMute,
-  } = useVoiceRoom(code, uid, displayName, seed, enabled);
+  } = useVoiceRoom(code, uid, displayName, seed, enabled, micDeviceId);
 
   // Auto-mute once when joining in listen-only mode. Waits for localStream
   // because the audio track must exist before muting has any effect.
@@ -120,7 +122,7 @@ export default function VoicePanel({
         <button
           type="button"
           onClick={() => { setListenOnly(false); setEnabled(true); }}
-          className="p-3 rounded-2xl glass ring-1 ring-emerald-400/20 text-emerald-300 hover:bg-emerald-500/15 hover:text-emerald-200 transition btn-press shadow-xl"
+          className="p-3 rounded-2xl glass ring-1 ring-amber-400/20 text-amber-300 hover:bg-amber-500/12 hover:text-amber-200 transition btn-press shadow-xl"
           title="Unirme con micrófono"
           aria-label="Unirme con micrófono"
         >
@@ -160,7 +162,7 @@ export default function VoicePanel({
     >
       <header className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-zinc-400">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
           Voz · {Object.keys(participants).length} en sala
           {listenOnly && (
             <span className="flex items-center gap-0.5 text-zinc-500">
@@ -246,7 +248,7 @@ function ParticipantRow({
   const level = useAudioLevel(stream);
   const talking = !participant.isMuted && level > 0.12;
   const ringClass = talking
-    ? "ring-emerald-400/80 shadow-[0_0_12px_-2px_rgba(52,211,153,0.6)]"
+    ? "ring-amber-400/80 shadow-[0_0_12px_-2px_rgba(180,130,40,0.5)]"
     : "ring-white/10";
   const connLabel = !isLocal ? describeConnState(connectionState) : null;
 
