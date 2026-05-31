@@ -10,7 +10,6 @@ import {
   LayoutGrid,
   Star,
 } from "lucide-react";
-import { Logo } from "@/components/brand/Logo";
 import { BorderGlow } from "@/components/ui/BorderGlow";
 import { FaultyTerminal } from "@/components/ui/FaultyTerminal";
 
@@ -66,17 +65,20 @@ export default function Home() {
           className="absolute inset-0 pointer-events-none"
           style={{
             background:
-              "radial-gradient(ellipse 70% 40% at 50% -5%, rgba(180,130,40,0.07) 0%, transparent 70%)",
+              "radial-gradient(ellipse 70% 40% at 50% -5%, rgba(255,255,255,0.03) 0%, transparent 70%)",
           }}
         />
       </div>
 
       <div className="relative z-[2] w-full max-w-5xl mx-auto px-4 py-12 sm:py-16 flex flex-col items-center gap-12">
         <header className="flex flex-col items-center gap-4 text-center">
-          <Logo size={60} />
-          <h1 className="text-4xl sm:text-6xl tracking-tight text-zinc-50 font-semibold">
-            Noir
-          </h1>
+          <img
+            src="/logo.png"
+            alt="Noir Poker"
+            draggable={false}
+            className="object-contain select-none pointer-events-none"
+            style={{ height: "180px", width: "auto", mixBlendMode: "screen" }}
+          />
           <p className="text-sm sm:text-base text-zinc-400 max-w-xl">
             Texas Hold&apos;em multi-dispositivo. Mesas públicas y privadas,
             modo presencial, sala online con fichas o torneo administrado.
@@ -142,19 +144,19 @@ const TIERS: Record<
   { glow: string; colors: string[]; bg: string }
 > = {
   one: {
-    glow: "38 65 68",
-    colors: ["#d4bf94", "#b8994e", "#7a6030"],
-    bg: "rgba(14,12,8,0.85)",
+    glow: "0 0 82",
+    colors: ["#ededf2", "#a0a0a8", "#52525b"],
+    bg: "rgba(9,9,11,0.88)",
   },
   two: {
-    glow: "260 30 68",
-    colors: ["#c4bdd8", "#9b93b8", "#6b6380"],
-    bg: "rgba(11,10,14,0.85)",
+    glow: "0 0 75",
+    colors: ["#d4d4d8", "#8a8a93", "#3f3f46"],
+    bg: "rgba(9,9,11,0.88)",
   },
   three: {
-    glow: "35 25 52",
-    colors: ["#b0a88a", "#7a7260", "#52493a"],
-    bg: "rgba(9,8,6,0.85)",
+    glow: "0 0 60",
+    colors: ["#c0c0c8", "#6a6a73", "#3a3a42"],
+    bg: "rgba(9,9,11,0.88)",
   },
 };
 
@@ -216,7 +218,7 @@ function ModeCard({
             ))}
           </ul>
           <div className="mt-auto pt-1">
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition bg-amber-950/40 text-amber-200 ring-1 ring-amber-600/40 group-hover:bg-amber-900/55 group-hover:ring-amber-500/55 group-hover:shadow-[0_0_22px_rgba(180,130,40,0.18)]">
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition bg-white/[0.07] text-zinc-100 ring-1 ring-white/15 group-hover:bg-white/[0.12] group-hover:ring-white/25 group-hover:shadow-[0_0_22px_rgba(255,255,255,0.08)]">
               {cta}
               <ArrowRight className="w-4 h-4" />
             </span>
