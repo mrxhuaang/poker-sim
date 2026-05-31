@@ -45,6 +45,7 @@ export type BettingRound = {
   sidePots: SidePot[];
   currentBet: number;
   minRaise: number;
+  bigBlind: number;
   toActId: string | null;
   lastAggressorId: string | null;
   dealerIdx: number;
@@ -309,6 +310,7 @@ export function startHand(
       sidePots: [],
       currentBet: bbAmt,
       minRaise: bb,
+      bigBlind: bb,
       toActId: resolvedToActId,
       lastAggressorId: newSeats[bbIdx].id,
       dealerIdx,
@@ -543,7 +545,7 @@ function advanceStreet(state: NormalGameState): NormalGameState {
   const newBetting: BettingRound = {
     ...betting,
     currentBet: 0,
-    minRaise: betting.minRaise,
+    minRaise: betting.bigBlind || betting.minRaise,
     toActId,
     actedThisRound: [],
     sidePots: computeSidePots(newSeats, betting.pot),

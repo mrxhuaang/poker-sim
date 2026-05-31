@@ -74,7 +74,7 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
           <div className="flex flex-col gap-1.5 p-2 rounded-xl bg-black/40 border border-white/5">
             <div className="flex items-center justify-between">
               <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Amount</span>
-              <span className="text-base font-black text-amber-400 tabular-nums leading-none">
+              <span className="text-base font-black text-zinc-100 tabular-nums leading-none">
                 {formatChips(raiseAmount)}
               </span>
             </div>
@@ -82,10 +82,10 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
               type="range"
               min={sliderOpt.min ?? 0}
               max={sliderOpt.max ?? seat.chips}
-              step={betting.minRaise > 0 ? betting.minRaise : 1}
+              step={betting.bigBlind > 0 ? betting.bigBlind : 1}
               value={raiseAmount}
               onChange={handleSlider}
-              className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
+              className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-zinc-300"
             />
           </div>
         </div>

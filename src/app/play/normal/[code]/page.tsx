@@ -57,6 +57,7 @@ const EMPTY_BETTING: BettingRound = {
   sidePots: [],
   currentBet: 0,
   minRaise: 0,
+  bigBlind: 0,
   toActId: null,
   lastAggressorId: null,
   dealerIdx: -1,

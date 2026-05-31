@@ -40,6 +40,7 @@ const emptyBetting: BettingRound = {
   sidePots: [],
   currentBet: 0,
   minRaise: 10,
+  bigBlind: 10,
   toActId: null,
   lastAggressorId: null,
   dealerIdx: 0,

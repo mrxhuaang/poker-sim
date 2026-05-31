@@ -18,8 +18,8 @@ import {
 import { showdown, bestHand, compareScore, categoryFor } from "@/lib/handEval";
 import type { Category } from "@/lib/handEval";
 import { writeHandRecord } from "@/lib/handHistory";
-import type { Card, GameState } from "@/lib/poker";
-import { advance, makeDeck, shuffle } from "@/lib/poker";
+import type { Card } from "@/lib/poker";
+import { makeDeck, shuffle } from "@/lib/poker";
 
 export type RunRecord = {
   community: Card[];
@@ -29,6 +29,28 @@ export type RunRecord = {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+// Deal next community street for all-in runout.
+// Preserves all NormalGameState fields (betting.toActId stays null).
+function dealAllInStreet(s: NormalGameState): NormalGameState {
+  const newDeck = [...s.deck];
+  const newBurns = [...s.burns];
+  const newCommunity = [...s.community];
+  newBurns.push(newDeck.shift()!);
+  let newStreet: NormalGameState["street"];
+  let newPhase: NormalGameState["phase"];
+  if (s.street === "preflop") {
+    newCommunity.push(newDeck.shift()!, newDeck.shift()!, newDeck.shift()!);
+    newStreet = "flop"; newPhase = "flop";
+  } else if (s.street === "flop") {
+    newCommunity.push(newDeck.shift()!);
+    newStreet = "turn"; newPhase = "turn";
+  } else {
+    newCommunity.push(newDeck.shift()!);
+    newStreet = "river"; newPhase = "river";
+  }
+  return { ...s, deck: newDeck, burns: newBurns, community: newCommunity, street: newStreet, phase: newPhase };
 }
 
 function toPublicState(gs: NormalGameState) {
@@ -526,7 +548,7 @@ export function useNormalGame(
             // Deal remaining streets
             while (s.street !== "river") {
               await sleep(1200);
-              s = advance(s as unknown as GameState) as unknown as NormalGameState;
+              s = dealAllInStreet(s);
               setGameState(s);
               await patchNormalRoom(code, { state: toPublicState(s) });
             }
@@ -554,6 +576,10 @@ export function useNormalGame(
                 if (cmp > 0) { best = scored[i]; winners.length = 0; winners.push(scored[i].id); }
                 else if (cmp === 0) winners.push(scored[i].id);
               }
+            }
+            // Fallback: if hole cards were unavailable split pot equally so it's never lost
+            if (winners.length === 0) {
+              for (const u of unfolded) winners.push(u.id);
             }
 
             const totalPot = gameState.betting.pot;
