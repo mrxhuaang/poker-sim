@@ -9,6 +9,7 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
   writeBatch,
 } from "firebase/firestore";
 import { getDb } from "./firebase";
@@ -76,7 +77,38 @@ export type NormalRoomDoc = {
   tournament: TournamentState | null;
   locked: boolean;
   pendingRebuys: Record<string, number>;
+  // ── Lobby / multi-table platform ──────────────────────────────────────
+  // Display name shown in the lobby list.
+  roomName?: string;
+  // Public rooms appear in the lobby; private rooms are joinable by code only.
+  isPublic?: boolean;
+  // Seat cap (2-9). The lobby shows playerCount/maxPlayers and marks "full".
+  maxPlayers?: number;
+  // Client-ms timestamp the host refreshes on an interval. The lobby only lists
+  // rooms with a fresh heartbeat — rooms exist only while the host tab is open.
+  hostHeartbeat?: number;
+  // Mirror of the lobby subcollection size, kept fresh by the host so the lobby
+  // list can show occupancy without reading every room's lobby subcollection.
+  playerCount?: number;
 };
+
+// Compact projection of a live room for the lobby list.
+export type OpenRoomSummary = {
+  code: string;
+  roomName: string;
+  mode: "normal" | "torneo";
+  isPublic: boolean;
+  locked: boolean;
+  playerCount: number;
+  maxPlayers: number;
+  smallBlind: number;
+  bigBlind: number;
+  status: "waiting" | "playing" | "full";
+  hostHeartbeat: number;
+};
+
+// A room is considered live this long after its last heartbeat.
+export const ROOM_LIVE_WINDOW_MS = 35_000;
 
 export async function setNormalRoomCardBack(
   code: string,
@@ -105,7 +137,12 @@ export async function setNormalRoomBg(
 export async function createNormalRoom(
   hostUid: string,
   config: RoomConfig,
-  theme = "emerald",
+  meta: {
+    theme?: string;
+    roomName?: string;
+    isPublic?: boolean;
+    maxPlayers?: number;
+  } = {},
 ): Promise<string> {
   const db = getDb();
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -125,7 +162,12 @@ export async function createNormalRoom(
       state: null,
       pendingAction: null,
       result: null,
-      theme,
+      theme: meta.theme ?? "noir",
+      roomName: meta.roomName?.trim() || `Mesa ${code}`,
+      isPublic: meta.isPublic ?? true,
+      maxPlayers: Math.min(9, Math.max(2, meta.maxPlayers ?? 9)),
+      hostHeartbeat: Date.now(),
+      playerCount: 0,
       locked: false,
       pendingRebuys: {},
       tournament:
@@ -166,6 +208,56 @@ export function subscribeNormalRoom(
     // the last known room state is preserved while reconnecting.
     () => { if (onError) onError(); else cb(null); },
   );
+}
+
+// Lobby: public rooms. The `allow read` rule covers collection `list` for any
+// signed-in user. Projects to a compact summary and keeps `hostHeartbeat` so the
+// consumer can gate liveness on a timer (rooms are only "live" while the host
+// tab is open). Rooms with no heartbeat field are dropped here.
+export function subscribeOpenRooms(
+  cb: (rooms: OpenRoomSummary[]) => void,
+): () => void {
+  const db = getDb();
+  const q = query(collection(db, "normalRooms"), where("isPublic", "==", true));
+  return onSnapshot(
+    q,
+    (snap) => {
+      const rooms = snap.docs
+        .map((d) => d.data() as NormalRoomDoc)
+        .filter((r) => typeof r.hostHeartbeat === "number")
+        .map((r) => {
+          const maxPlayers = r.maxPlayers ?? 9;
+          const playerCount = r.playerCount ?? r.state?.seats?.length ?? 0;
+          const phase = r.state?.phase;
+          const inHand =
+            !!r.state && phase !== "lobby" && phase !== "between-hands";
+          const status: OpenRoomSummary["status"] =
+            playerCount >= maxPlayers ? "full" : inHand ? "playing" : "waiting";
+          return {
+            code: r.code,
+            roomName: r.roomName ?? `Mesa ${r.code}`,
+            mode: r.mode,
+            isPublic: r.isPublic ?? true,
+            locked: r.locked ?? false,
+            playerCount,
+            maxPlayers,
+            smallBlind: r.config?.smallBlind ?? 0,
+            bigBlind: r.config?.bigBlind ?? 0,
+            status,
+            hostHeartbeat: r.hostHeartbeat as number,
+          };
+        })
+        .sort((a, b) => b.hostHeartbeat - a.hostHeartbeat);
+      cb(rooms);
+    },
+    () => cb([]),
+  );
+}
+
+// Host-only: refresh the room's liveness marker so the lobby keeps listing it.
+export async function setHostHeartbeat(code: string): Promise<void> {
+  const db = getDb();
+  await updateDoc(doc(db, "normalRooms", code), { hostHeartbeat: Date.now() });
 }
 
 export function subscribeNormalLobby(
