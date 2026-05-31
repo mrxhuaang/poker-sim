@@ -4,9 +4,14 @@
 
 let ctx: AudioContext | null = null;
 let muted = false;
+let volume = 0.8; // master gain multiplier (0..1), driven by useSound
 
 export function setSoundMuted(v: boolean): void {
   muted = v;
+}
+
+export function setSoundVolume(v: number): void {
+  volume = Math.max(0, Math.min(1, v));
 }
 
 function getCtx(): AudioContext | null {
@@ -42,7 +47,7 @@ function tone(c: AudioContext, o: ToneOpts): void {
   if (o.sweepTo) {
     osc.frequency.exponentialRampToValueAtTime(o.sweepTo, t0 + o.duration);
   }
-  const peak = o.gain ?? 0.18;
+  const peak = Math.max(0.0002, (o.gain ?? 0.18) * volume);
   g.gain.setValueAtTime(0.0001, t0);
   g.gain.exponentialRampToValueAtTime(peak, t0 + 0.008);
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + o.duration);

@@ -130,6 +130,8 @@ export function useVoiceWebRTC(
   // Se usa para cerrar PeerConnections cuando un peer sale. Es string (no array)
   // para evitar re-disparos por identidad: solo cambia si entra/sale alguien.
   peerUidsKey: string,
+  // Micrófono elegido (deviceId). "" / undefined = micrófono por defecto.
+  micDeviceId?: string,
 ) {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStreams, setRemoteStreams] = useState<{
@@ -140,6 +142,7 @@ export function useVoiceWebRTC(
   }>({});
   const peerConnections = useRef<{ [uid: string]: RTCPeerConnection }>({});
   const localStreamRef = useRef<MediaStream | null>(null);
+  const micRef = useRef(micDeviceId);
 
   // Capturar localStream una vez por llamada.
   useEffect(() => {
@@ -152,6 +155,7 @@ export function useVoiceWebRTC(
             echoCancellation: true,
             noiseSuppression: true,
             autoGainControl: true,
+            ...(micDeviceId ? { deviceId: { exact: micDeviceId } } : {}),
           },
         });
         if (cancelled) {
@@ -175,6 +179,49 @@ export function useVoiceWebRTC(
       setLocalStream(null);
     };
   }, [callId]);
+
+  // Cambio de micrófono EN VIVO. En vez de re-disparar el effect de captura
+  // (que cerraría todas las PeerConnections), adquiere el nuevo dispositivo y
+  // hace replaceTrack en cada sender — sin renegociar, sin tocar glare/cleanup.
+  useEffect(() => {
+    if (micRef.current === micDeviceId) return; // sin cambio real (incl. montaje)
+    micRef.current = micDeviceId;
+    if (!callId || !localStreamRef.current) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const next = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            ...(micDeviceId ? { deviceId: { exact: micDeviceId } } : {}),
+          },
+        });
+        if (cancelled) {
+          next.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        const newTrack = next.getAudioTracks()[0];
+        if (!newTrack) return;
+        // Preserva el estado de mute del track anterior.
+        const oldTrack = localStreamRef.current?.getAudioTracks()[0];
+        if (oldTrack) newTrack.enabled = oldTrack.enabled;
+        for (const pc of Object.values(peerConnections.current)) {
+          const sender = pc.getSenders().find((s) => s.track?.kind === "audio");
+          if (sender) await sender.replaceTrack(newTrack);
+        }
+        localStreamRef.current?.getTracks().forEach((t) => t.stop());
+        localStreamRef.current = next;
+        setLocalStream(next);
+      } catch (err) {
+        console.error("Error cambiando de micrófono:", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [micDeviceId, callId]);
 
   // Cuando un peer desaparece de la lista de participantes vivos, cerrar
   // su RTCPeerConnection y eliminar su MediaStream remoto. Sin esto, cerrar
