@@ -19,7 +19,7 @@ import { showdown, bestHand, compareScore, categoryFor } from "@/lib/handEval";
 import type { Category } from "@/lib/handEval";
 import { writeHandRecord } from "@/lib/handHistory";
 import type { Card, GameState } from "@/lib/poker";
-import { advance } from "@/lib/poker";
+import { advance, makeDeck, shuffle } from "@/lib/poker";
 
 export type RunRecord = {
   community: Card[];
@@ -457,16 +457,23 @@ export function useNormalGame(
   // Admin: Auto-advance street if round is complete or all-in.
   // Run-it-N-times removed — all-in always runs once automatically.
   useEffect(() => {
-    if (!isAdminRef.current || !gameState || !code || isProcessing) return;
+    if (!isAdminRef.current || !gameState || !code) return;
     if (gameState.phase === "showdown" || gameState.phase === "between-hands") return;
 
     const unfolded = gameState.seats.filter(s => s.status !== "folded" && s.status !== "out");
 
     if (unfolded.length <= 1) {
-      void resolveShowdown();
+      // Single remaining player: resolve once any in-flight action settles.
+      if (!isProcessing) void resolveShowdown();
       return;
     }
 
+    // All remaining players are committed (nobody left to act) → run the board
+    // out. Crucially this is NOT gated by `isProcessing`: it must fire the
+    // instant `toActId` becomes null. The per-hand ref below is the only
+    // re-entry guard — gating on `isProcessing` here previously let the runout
+    // get skipped when the closing action's Firestore write was still in
+    // flight, leaving every player all-in and the board frozen (BUG-B).
     const isAllInRunout = gameState.betting.toActId === null && unfolded.length >= 2;
 
     if (isAllInRunout) {
@@ -500,6 +507,21 @@ export function useNormalGame(
             });
 
             await sleep(1500);
+
+            // Defensive: if the local deck was lost (e.g. the admin reloaded
+            // mid-hand, so only deckCount survived in Firestore), rebuild a deck
+            // from the cards not already known so the board can still run out.
+            // Worst case from preflop needs 8 cards (3 burns + flop/turn/river).
+            if (!s.deck || s.deck.length < 8) {
+              const known = new Set<string>();
+              for (const c of s.community) known.add(c.id);
+              for (const c of s.burns) known.add(c.id);
+              for (const u of unfolded) {
+                const h = dealtHolesRef.current[u.id] ?? holeCards[u.id];
+                if (h) { known.add(h[0].id); known.add(h[1].id); }
+              }
+              s = { ...s, deck: shuffle(makeDeck()).filter((c) => !known.has(c.id)) };
+            }
 
             // Deal remaining streets
             while (s.street !== "river") {
@@ -579,6 +601,10 @@ export function useNormalGame(
               pot: totalPot,
               community: s.community.map(c => c.id),
             }).catch(() => {});
+          } catch {
+            // Runout failed partway — clear the guard so a later state change
+            // can retry rather than leaving the board frozen.
+            allInRanHandRef.current = -1;
           } finally {
             setIsProcessing(false);
           }
