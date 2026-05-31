@@ -21,6 +21,7 @@ import {
   approveJoin,
   patchNormalRoom,
   lobbyToSeats,
+  setHostHeartbeat,
 } from "@/lib/normalRooms";
 import { formatChips, TOURNAMENT_LEVELS } from "@/lib/betting";
 import type {
@@ -130,6 +131,19 @@ export default function HostTorneoPage() {
   useEffect(() => {
     if (room?.tournament) setTournament(room.tournament as TournamentState);
   }, [room?.tournament]);
+
+  // Lobby liveness + occupancy (same as normal host) so torneo rooms list.
+  useEffect(() => {
+    if (!code || !uid || room?.hostUid !== uid) return;
+    setHostHeartbeat(code).catch(() => {});
+    const id = setInterval(() => setHostHeartbeat(code).catch(() => {}), 15000);
+    return () => clearInterval(id);
+  }, [code, uid, room?.hostUid]);
+
+  useEffect(() => {
+    if (!code || !uid || room?.hostUid !== uid) return;
+    patchNormalRoom(code, { playerCount: lobby.length }).catch(() => {});
+  }, [code, uid, room?.hostUid, lobby.length]);
 
   const myLobbyEntry = useMemo(() => lobby.find((p) => p.uid === uid), [lobby, uid]);
   const mySeat = useMemo(

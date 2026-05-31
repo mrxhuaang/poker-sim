@@ -258,9 +258,12 @@ export function RoundPokerTable({
     }, 0);
   }, [community, revealedHoles]);
 
+  // Both normal and tournament rooms live in the `normalRooms` collection and
+  // are joined through the mode-agnostic /play/normal route (there is no
+  // /play/torneo route). isTournament only affects UI labels elsewhere.
   const joinUrl =
     typeof window !== "undefined" && roomCode
-      ? `${window.location.origin}/play/${isTournament ? "torneo" : "normal"}/${roomCode}`
+      ? `${window.location.origin}/play/normal/${roomCode}`
       : "";
 
   // 9 positions evenly distributed around an ellipse, starting at bottom-center.
@@ -426,8 +429,8 @@ export function RoundPokerTable({
                   onClick={() => onSit!(i)}
                   className="pointer-events-auto group flex flex-col items-center gap-1.5 cursor-pointer"
                 >
-                  <div className="w-12 h-12 rounded-full bg-zinc-900/60 ring-2 ring-dashed ring-white/15 group-hover:ring-emerald-400/60 group-hover:bg-emerald-500/10 backdrop-blur-sm transition flex items-center justify-center">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-emerald-300">
+                  <div className="w-12 h-12 rounded-full bg-zinc-900/60 ring-2 ring-dashed ring-white/15 group-hover:ring-amber-400/50 group-hover:bg-amber-500/8 backdrop-blur-sm transition flex items-center justify-center">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-amber-300">
                       Sit
                     </span>
                   </div>
