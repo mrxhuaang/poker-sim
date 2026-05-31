@@ -11,7 +11,8 @@ import {
   type NormalGameState,
   type RoomConfig,
 } from "./betting";
-import { shuffle, makeDeck } from "./poker";
+import { shuffle, makeDeck, advance } from "./poker";
+import type { GameState } from "./poker";
 
 function seat(
   id: string,
@@ -384,6 +385,106 @@ describe("full hand integration — preflop betting to flop", () => {
     // All three all-in → toActId is null
     expect(s3.betting.toActId).toBeNull();
     expect(s3.seats.every((s) => s.chips === 0)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// BUG-C regression: turn order must never skip an active opponent's turn
+// ---------------------------------------------------------------------------
+describe("turn-order — no premature street advance (BUG-C)", () => {
+  function flopState(ids: string[]): NormalGameState {
+    const s = startHand(
+      ids.map((id) => seat(id, 1000)),
+      DEFAULT_CONFIG,
+      1,
+      0,
+    );
+    // Drive preflop: everyone calls/checks down to the flop.
+    let cur = s;
+    let guard = 0;
+    while (cur.street === "preflop" && guard++ < 20) {
+      const toAct = cur.betting.toActId;
+      if (!toAct) break;
+      const seatNow = cur.seats.find((x) => x.id === toAct)!;
+      const needCall = seatNow.bet < cur.betting.currentBet;
+      cur = handleAction(cur, toAct, needCall ? "call" : "check");
+    }
+    return cur;
+  }
+
+  it("heads-up flop: first checker does NOT advance the street", () => {
+    const flop = flopState(["a", "b"]);
+    expect(flop.street).toBe("flop");
+    const first = flop.betting.toActId!;
+    const afterFirst = handleAction(flop, first, "check");
+    // Opponent still owes an action — street must stay on the flop.
+    expect(afterFirst.street).toBe("flop");
+    expect(afterFirst.betting.toActId).not.toBeNull();
+    expect(afterFirst.betting.toActId).not.toBe(first);
+    // Only after the opponent checks does it advance.
+    const afterSecond = handleAction(afterFirst, afterFirst.betting.toActId!, "check");
+    expect(afterSecond.street).toBe("turn");
+  });
+
+  it("3-handed flop: two checks still leave the third to act", () => {
+    const flop = flopState(["a", "b", "c"]);
+    expect(flop.street).toBe("flop");
+    const p1 = flop.betting.toActId!;
+    const s1 = handleAction(flop, p1, "check");
+    expect(s1.street).toBe("flop");
+    const p2 = s1.betting.toActId!;
+    expect(p2).not.toBe(p1);
+    const s2 = handleAction(s1, p2, "check");
+    // STILL the third player's turn — must not have dealt the turn yet.
+    expect(s2.street).toBe("flop");
+    const p3 = s2.betting.toActId!;
+    expect([p1, p2]).not.toContain(p3);
+    const s3 = handleAction(s2, p3, "check");
+    expect(s3.street).toBe("turn");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// BUG-B regression: heads-up all-in must close action and run out the board
+// ---------------------------------------------------------------------------
+describe("all-in runout — heads-up board completes (BUG-B)", () => {
+  it("both players all-in preflop closes action (toActId null) and a full board can be dealt", () => {
+    const s = startHand(
+      [seat("a", 100), seat("b", 100)],
+      DEFAULT_CONFIG,
+      1,
+      0,
+    );
+    // HU: dealer/SB acts first.
+    const s1 = handleAction(s, s.betting.toActId!, "all-in");
+    const s2 = handleAction(s1, s1.betting.toActId!, "all-in");
+    expect(s2.betting.toActId).toBeNull();
+    expect(s2.phase).not.toBe("showdown"); // still needs a board
+    expect(s2.seats.every((x) => x.status === "all-in")).toBe(true);
+
+    // Replicate the useNormalGame runout: advance() until the river.
+    let g = s2 as unknown as GameState;
+    let guard = 0;
+    while (g.street !== "river" && guard++ < 5) {
+      g = advance(g);
+    }
+    expect(g.street).toBe("river");
+    expect(g.community).toHaveLength(5);
+  });
+
+  it("short all-in call (one player covers) still closes the action", () => {
+    // a has fewer chips; a is dealer/SB and acts first heads-up.
+    const s = startHand(
+      [seat("a", 40), seat("b", 1000)],
+      DEFAULT_CONFIG,
+      1,
+      0,
+    );
+    const s1 = handleAction(s, s.betting.toActId!, "all-in"); // a shoves 40
+    const s2 = handleAction(s1, s1.betting.toActId!, "call"); // b covers
+    // a is all-in, b called and has chips left → action closed for runout.
+    expect(s2.betting.toActId).toBeNull();
+    expect(s2.seats.find((x) => x.id === "a")!.status).toBe("all-in");
   });
 });
 
