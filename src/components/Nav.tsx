@@ -194,8 +194,8 @@ export function Nav() {
                 accent="one"
                 title="Presencial"
                 subtitle="Sin apuestas · Para mesa real"
-                description="Big screen muestra la mesa. Cada jugador ve sus cartas en su teléfono. Equity y stats para el host."
-                features={["Hasta 9 jugadores", "All-in con run-out", "Equity en vivo (solo host)"]}
+                description="Host abre la mesa en pantalla grande. Cada jugador ve sus cartas privadas en su teléfono. La mesa reparte, avanza calles y resuelve el showdown."
+                features={["Hasta 9 jugadores", "All-in con run-out múltiple", "Historial de manos"]}
                 cta="Abrir mesa"
                 onNavigate={() => setShowModal(false)}
               />
@@ -205,8 +205,8 @@ export function Nav() {
                 accent="two"
                 title="Online"
                 subtitle="Apuestas virtuales · Lobby"
-                description="Sala con fichas y apuestas. Crea pública o privada; las reglas se ajustan dentro de la mesa."
-                features={["Lobby de mesas en vivo", "Pública o privada", "Side pots automáticos"]}
+                description="Sala con fichas virtuales, ciegas y apuestas. Crea pública o privada; configura las reglas dentro de la sala."
+                features={["Fichas, ciegas y apuestas", "Pública o privada con lobby", "Side pots automáticos"]}
                 cta="Crear sala"
                 onNavigate={() => setShowModal(false)}
               />
@@ -216,8 +216,8 @@ export function Nav() {
                 accent="three"
                 title="Torneo"
                 subtitle="Ciegas escalonadas · Admin"
-                description="Estructura de torneo con niveles de ciegas, antes y timer. Panel de admin con estadísticas en vivo."
-                features={["Niveles automáticos", "Knockouts + ranking final", "Panel admin con equity"]}
+                description="Estructura con niveles de ciegas, antes y timer automático. Admin controla el torneo y ve el ranking de eliminados en vivo."
+                features={["Niveles y timer automáticos", "Knockouts + ranking final", "Panel admin exclusivo"]}
                 cta="Crear torneo"
                 onNavigate={() => setShowModal(false)}
               />

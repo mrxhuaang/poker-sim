@@ -40,8 +40,8 @@ export default function Home() {
             tier="one"
             title="Presencial"
             subtitle="Sin apuestas · Para mesa real"
-            description="Big screen muestra la mesa. Cada jugador ve sus cartas en su teléfono. Equity y stats para el host."
-            features={["Hasta 9 jugadores", "All-in con run-out", "Equity en vivo (solo host)"]}
+            description="Host abre la mesa en pantalla grande. Cada jugador ve sus cartas privadas en su teléfono. La mesa reparte, avanza calles y resuelve el showdown automáticamente."
+            features={["Hasta 9 jugadores", "All-in con run-out múltiple", "Historial de manos"]}
             cta="Abrir mesa"
             onInfo={() => setShowTutorial(true)}
           />
@@ -51,8 +51,8 @@ export default function Home() {
             tier="two"
             title="Online"
             subtitle="Apuestas virtuales · Lobby"
-            description="Sala con fichas, ciegas y apuestas. Crea pública o privada y aparece en el lobby para que entren."
-            features={["Lobby de mesas en vivo", "Pública o privada", "Side pots automáticos"]}
+            description="Sala con fichas virtuales, ciegas y apuestas reales. Crea pública o privada, configura las reglas dentro de la sala y el lobby la lista en tiempo real."
+            features={["Fichas, ciegas y apuestas", "Pública o privada con lobby", "Side pots automáticos"]}
             cta="Crear sala"
           />
           <ModeCard
@@ -61,8 +61,8 @@ export default function Home() {
             tier="three"
             title="Torneo"
             subtitle="Ciegas escalonadas · Admin"
-            description="Estructura de torneo con niveles de ciegas, antes y timer. Panel de admin con estadísticas en vivo."
-            features={["Niveles automáticos", "Knockouts + ranking final", "Panel admin con equity"]}
+            description="Estructura con niveles de ciegas, antes y timer automático. El admin controla el torneo: pausa, avanza niveles y ve el ranking de eliminados en vivo."
+            features={["Niveles y timer automáticos", "Knockouts + ranking final", "Panel admin exclusivo"]}
             cta="Crear torneo"
           />
         </section>
@@ -280,18 +280,20 @@ function QuickLink({
   return (
     <Link
       href={href}
-      className="group flex items-center justify-between gap-3 p-4 rounded-2xl glass hover:bg-white/[0.06] transition btn-press"
+      className="group flex items-center justify-between gap-4 p-5 rounded-2xl bg-zinc-950/80 ring-1 ring-white/[0.1] hover:ring-white/[0.18] hover:bg-zinc-900/80 transition-all duration-200 btn-press shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
     >
-      <div className="flex items-center gap-3">
-        <div className="p-2 rounded-xl bg-white/5 ring-1 ring-white/10 text-zinc-300">
+      <div className="flex items-center gap-4">
+        <div className="p-2.5 rounded-xl bg-white/[0.07] ring-1 ring-white/[0.1] text-zinc-200 group-hover:bg-white/[0.1] transition">
           {icon}
         </div>
         <div>
-          <div className="text-sm text-zinc-100">{title}</div>
+          <div className="text-sm font-semibold text-zinc-100">{title}</div>
           <p className="text-xs text-zinc-500 mt-0.5">{sub}</p>
         </div>
       </div>
-      <ArrowRight className="w-4 h-4 text-zinc-500 group-hover:text-zinc-200 transition" />
+      <div className="w-7 h-7 rounded-full bg-white/5 ring-1 ring-white/10 flex items-center justify-center group-hover:bg-white/[0.1] group-hover:ring-white/20 transition">
+        <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-200 transition" />
+      </div>
     </Link>
   );
 }
