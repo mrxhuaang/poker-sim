@@ -275,6 +275,44 @@ export async function cashOut(
   });
 }
 
+// Reconcilia escrows huerfanos al iniciar sesion: si el jugador tiene monedas
+// comprometidas en una sala donde ya NO esta sentado (cierre brusco de pestana,
+// sala abandonada/borrada por el host, expulsion sin cash-out), devuelve el
+// buy-in al wallet. Sustituye a un barrido server-side: cada usuario reconcilia
+// su propio wallet en el siguiente inicio de sesion.
+//
+// Conservador: solo libera cuando NO esta en el lobby y NO tiene una solicitud
+// PENDIENTE en esa sala — asi no rompe una sesion activa en otra pestana ni un
+// join en curso. Devuelve el monto exacto del escrow (nunca acuna de mas).
+export async function reconcileEscrows(uid: string): Promise<void> {
+  const ref = userRef(uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  const p = snap.data() as UserProfile;
+  const escrows = p.escrows ?? {};
+  const codes = Object.keys(escrows).filter((c) => (escrows[c] ?? 0) > 0);
+  if (codes.length === 0) return;
+
+  const db = getDb();
+  for (const code of codes) {
+    try {
+      // Sigo sentado en esa sala? => sesion activa (quiza otra pestana), no tocar.
+      const lobbySnap = await getDoc(doc(db, "normalRooms", code, "lobby", uid));
+      if (lobbySnap.exists()) continue;
+      // Solicitud pendiente (join/rebuy en curso)? => no tocar.
+      const reqSnap = await getDoc(doc(db, "normalRooms", code, "stackRequests", uid));
+      if (reqSnap.exists() && (reqSnap.data() as { status?: string }).status === "pending") {
+        continue;
+      }
+      // Escrow huerfano: devolver el monto exacto al wallet.
+      const amt = escrows[code] ?? 0;
+      if (amt > 0) await refundBuyIn(uid, code, amt);
+    } catch {
+      /* best-effort; se reintenta en el proximo inicio de sesion */
+    }
+  }
+}
+
 // --- Stats + XP + historial (escrito por el propio jugador al cerrar sesion) ---
 
 export async function recordSession(

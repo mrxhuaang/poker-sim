@@ -20,10 +20,24 @@ service cloud.firestore {
                     && request.auth.uid == uid
                     && request.resource.data.uid == uid
                     && request.resource.data.coins == 10000;
-      // Solo el dueno escribe; el saldo nunca puede quedar negativo.
+      // Solo el dueno escribe; el saldo nunca queda negativo ni se "acuna".
+      // Sin backend, el wallet vive en el cliente. Para impedir el ataque trivial
+      // (poner coins = 9999999) las monedas solo pueden SUBIR si:
+      //   - el mapa de escrows cambia (cash-out / refund de un buy-in), o
+      //   - el incremento es <= 2000 (bono diario o rescate por quiebra).
+      // Bajar o mantener (buy-in, stats/XP, edicion de perfil) siempre se permite.
+      // Limitacion conocida: un host deshonesto aun podria inflar el cash-out via
+      // lobby.chips; cerrar eso requiere settlement server-side (Cloud Functions).
       allow update: if isSignedIn()
                     && request.auth.uid == uid
-                    && request.resource.data.coins >= 0;
+                    && request.resource.data.uid == uid
+                    && request.resource.data.coins >= 0
+                    && (
+                      request.resource.data.coins <= resource.data.coins
+                      || request.resource.data.get('escrows', {})
+                           != resource.data.get('escrows', {})
+                      || request.resource.data.coins - resource.data.coins <= 2000
+                    );
 
       match /history/{id} {
         allow read: if isSignedIn();

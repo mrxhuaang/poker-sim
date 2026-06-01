@@ -12,7 +12,7 @@ import {
   type User,
 } from "firebase/auth";
 import { getFirebaseAuth, githubProvider, googleProvider } from "@/lib/firebase";
-import { ensureUserProfile, subscribeUserProfile, type UserProfile } from "@/lib/users";
+import { ensureUserProfile, reconcileEscrows, subscribeUserProfile, type UserProfile } from "@/lib/users";
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -35,6 +35,8 @@ export function useAuth() {
       // Crea/actualiza el perfil (grant inicial, bono diario, rescate).
       try {
         await ensureUserProfile(u);
+        // Libera escrows huerfanos de sesiones que no cerraron limpiamente.
+        await reconcileEscrows(u.uid);
       } catch {
         /* la suscripcion reflejara el estado disponible */
       }
