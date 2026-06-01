@@ -87,23 +87,29 @@ function rankStatus(t: Title, currentLevel: number, allTitles: Title[]): "achiev
 }
 
 function RankEmblem({
-  src, alt, size, glow, locked, initial, color,
+  src, alt, size, glow, locked, hovered, initial, color,
 }: {
   src: string; alt: string; size: number;
-  glow: string; locked: boolean; initial: string; color: string;
+  glow: string; locked: boolean; hovered: boolean; initial: string; color: string;
 }) {
   const [broken, setBroken] = useState(false);
+  const reveal = locked && hovered;
+  const glowSize = hovered ? size * 0.28 : size * 0.18;
+
   return broken ? (
     <div
-      className="rounded-full flex items-center justify-center font-black shrink-0"
+      className="rounded-full flex items-center justify-center font-black shrink-0 transition-all duration-300"
       style={{
         width: size, height: size,
-        background: locked ? "rgba(255,255,255,0.04)" : `radial-gradient(circle, ${glow} 0%, transparent 70%)`,
-        border: `1.5px solid ${locked ? "rgba(255,255,255,0.08)" : glow}`,
-        color: locked ? "#52525b" : color,
+        background: reveal || !locked
+          ? `radial-gradient(circle, ${glow} 0%, transparent 70%)`
+          : "rgba(255,255,255,0.04)",
+        border: `1.5px solid ${reveal || !locked ? glow : "rgba(255,255,255,0.08)"}`,
+        color: reveal || !locked ? color : "#52525b",
         fontSize: size * 0.38,
-        filter: locked ? "grayscale(1)" : "none",
-        opacity: locked ? 0.4 : 1,
+        filter: reveal ? "none" : locked ? "grayscale(1)" : "none",
+        opacity: reveal ? 1 : locked ? 0.4 : 1,
+        boxShadow: hovered && !locked ? `0 0 ${glowSize * 2}px ${glow}` : "none",
       }}
     >
       {initial}
@@ -114,13 +120,16 @@ function RankEmblem({
       src={src}
       alt={alt}
       onError={() => setBroken(true)}
-      className="object-contain shrink-0"
+      className="object-contain shrink-0 transition-all duration-300"
       style={{
         width: size, height: size,
-        filter: locked
-          ? "grayscale(1) brightness(0.35)"
-          : `drop-shadow(0 0 ${size * 0.18}px ${glow})`,
-        opacity: locked ? 0.4 : 1,
+        filter: reveal
+          ? `drop-shadow(0 0 ${glowSize}px ${glow}) brightness(1.15)`
+          : locked
+            ? "grayscale(1) brightness(0.35)"
+            : `drop-shadow(0 0 ${glowSize}px ${glow})`,
+        opacity: reveal ? 1 : locked ? 0.4 : 1,
+        transform: hovered ? "scale(1.08)" : "scale(1)",
       }}
     />
   );
@@ -135,6 +144,7 @@ export function RankTowerModal({
 }) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const currentRef = useRef<HTMLDivElement>(null);
+  const [hoveredRank, setHoveredRank] = useState<string | null>(null);
   const reversed = [...TITLES].reverse();
 
   useEffect(() => {
@@ -282,17 +292,27 @@ export function RankTowerModal({
 
                 {/* Rank card */}
                 <div
-                  className="flex-1 mb-2 rounded-2xl overflow-hidden transition-all duration-300"
+                  className="flex-1 mb-2 rounded-2xl overflow-hidden transition-all duration-300 cursor-default"
+                  onMouseEnter={() => setHoveredRank(t.name)}
+                  onMouseLeave={() => setHoveredRank(null)}
                   style={{
-                    background: isLocked ? "rgba(255,255,255,0.02)" : meta.bgGradient,
-                    border: `1px solid ${isLocked ? "rgba(255,255,255,0.05)" : meta.borderHex}`,
+                    background: hoveredRank === t.name && isLocked
+                      ? meta.bgGradient
+                      : isLocked ? "rgba(255,255,255,0.02)" : meta.bgGradient,
+                    border: `1px solid ${
+                      hoveredRank === t.name
+                        ? meta.borderHex
+                        : isLocked ? "rgba(255,255,255,0.05)" : meta.borderHex
+                    }`,
                     boxShadow: isCurrent
                       ? `0 0 40px ${meta.glowHex}55, 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06)`
-                      : status === "achieved"
-                        ? `0 0 16px ${meta.glowHex}22, 0 4px 16px rgba(0,0,0,0.4)`
-                        : "0 2px 8px rgba(0,0,0,0.3)",
-                    opacity: isLocked ? 0.5 : 1,
-                    transform: isCurrent ? "scale(1.02)" : "scale(1)",
+                      : hoveredRank === t.name
+                        ? `0 0 32px ${meta.glowHex}55, 0 4px 20px rgba(0,0,0,0.5)`
+                        : status === "achieved"
+                          ? `0 0 16px ${meta.glowHex}22, 0 4px 16px rgba(0,0,0,0.4)`
+                          : "0 2px 8px rgba(0,0,0,0.3)",
+                    opacity: isLocked && hoveredRank !== t.name ? 0.5 : 1,
+                    transform: isCurrent ? "scale(1.02)" : hoveredRank === t.name ? "scale(1.01)" : "scale(1)",
                   }}
                 >
                   {/* Rango actual: layout expandido */}
@@ -304,6 +324,7 @@ export function RankTowerModal({
                           size={emblemSize}
                           glow={meta.glowHex}
                           locked={false}
+                          hovered={hoveredRank === t.name}
                           initial={meta.initial}
                           color={meta.colorHex}
                         />
@@ -343,6 +364,7 @@ export function RankTowerModal({
                           size={emblemSize}
                           glow={meta.glowHex}
                           locked={isLocked}
+                          hovered={hoveredRank === t.name}
                           initial={meta.initial}
                           color={meta.colorHex}
                         />
@@ -363,12 +385,18 @@ export function RankTowerModal({
 
                       <div className="flex-1 min-w-0">
                         <span
-                          className="text-sm font-bold tracking-tight"
-                          style={{ color: isLocked ? "#52525b" : meta.colorHex }}
+                          className="text-sm font-bold tracking-tight transition-colors duration-300"
+                          style={{
+                            color: isLocked && hoveredRank !== t.name ? "#52525b" : meta.colorHex,
+                            textShadow: hoveredRank === t.name ? `0 0 12px ${meta.glowHex}` : "none",
+                          }}
                         >
                           {t.name}
                         </span>
-                        <p className="text-[11px] mt-0.5" style={{ color: isLocked ? "#3f3f46" : "#52525b" }}>
+                        <p
+                          className="text-[11px] mt-0.5 transition-colors duration-300"
+                          style={{ color: isLocked && hoveredRank !== t.name ? "#3f3f46" : "#71717a" }}
+                        >
                           {isLocked ? `Requiere nivel ${t.level}` : meta.flavor}
                         </p>
                       </div>
