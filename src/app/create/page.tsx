@@ -92,7 +92,7 @@ export default function CreateRoom() {
           <h1 className="text-2xl font-semibold tracking-tight text-zinc-50">
             Crear mesa
           </h1>
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-zinc-400">
             Las ciegas, stack y tiempo se ajustan dentro de la sala.
           </p>
         </div>
@@ -314,7 +314,7 @@ function VisToggle({
           >
             {title}
           </span>
-          <span className="text-[11px] text-zinc-500">{sub}</span>
+          <span className="text-[11px] text-zinc-400">{sub}</span>
         </div>
       </BorderGlow>
     </button>

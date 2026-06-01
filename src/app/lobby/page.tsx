@@ -35,7 +35,7 @@ export default function LobbyPage() {
         <h1 className="text-2xl sm:text-3xl tracking-tight text-zinc-50 font-semibold">
           Lobby
         </h1>
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-zinc-300">
           Mesas abiertas ahora mismo. Entra o crea la tuya.
         </p>
       </header>
@@ -60,7 +60,7 @@ export default function LobbyPage() {
               </span>
               <span className="flex flex-col">
                 <span className="text-sm font-semibold">Crear mesa</span>
-                <span className="text-[11px] text-zinc-500">Pública o privada</span>
+                <span className="text-[11px] text-zinc-400">Pública o privada</span>
               </span>
             </div>
           </BorderGlow>
@@ -83,7 +83,7 @@ export default function LobbyPage() {
               </span>
               <span className="flex flex-col">
                 <span className="text-sm font-semibold">Unirme con código</span>
-                <span className="text-[11px] text-zinc-500">Para salas privadas</span>
+                <span className="text-[11px] text-zinc-400">Para salas privadas</span>
               </span>
             </div>
           </BorderGlow>
@@ -93,7 +93,7 @@ export default function LobbyPage() {
       {/* Live tables */}
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between px-1">
-          <h2 className="text-[11px] uppercase tracking-[0.25em] text-zinc-500 font-bold">
+          <h2 className="text-[11px] uppercase tracking-[0.25em] text-zinc-400 font-bold">
             Mesas en vivo {ready && rooms.length > 0 ? `· ${rooms.length}` : ""}
           </h2>
           {!ready && <RefreshCw className="w-3.5 h-3.5 text-zinc-600 animate-spin" />}
@@ -157,7 +157,7 @@ function RoomCard({ room }: { room: OpenRoomSummary }) {
             </span>
             {!room.isPublic && <Lock className="w-3 h-3 text-zinc-500 shrink-0" />}
           </div>
-          <div className="flex items-center gap-2 text-[11px] text-zinc-500 tabular-nums mt-0.5">
+          <div className="flex items-center gap-2 text-[11px] text-zinc-400 tabular-nums mt-0.5">
             {room.economy === "casual" && (
               <span className="text-[9px] uppercase tracking-widest font-bold text-zinc-400 not-italic">
                 Casual
