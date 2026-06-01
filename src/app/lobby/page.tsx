@@ -15,8 +15,8 @@ import { useOpenRooms } from "@/hooks/useNormalRoom";
 import { formatChips } from "@/lib/betting";
 import type { OpenRoomSummary } from "@/lib/normalRooms";
 
-const GLOW = "38 60 65";
-const GLOW_COLORS = ["#d4bf94", "#b8994e", "#7a6030", "#52493a"];
+const GLOW = "0 0 82";
+const GLOW_COLORS = ["#ededf2", "#a0a0a8", "#52525b", "#3f3f46"];
 
 const STATUS: Record<OpenRoomSummary["status"], { label: string; cls: string }> = {
   waiting: { label: "Esperando", cls: "bg-white/12 text-white ring-white/25" },

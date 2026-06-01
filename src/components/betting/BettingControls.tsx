@@ -120,7 +120,7 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
             type="button"
             disabled={disabled}
             onClick={handleBetRaise}
-            className="flex-[2] rounded-xl bg-amber-700/80 hover:bg-amber-600/85 text-amber-100 text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-amber-900/20"
+            className="flex-[2] rounded-xl bg-violet-700/80 hover:bg-violet-600/85 text-violet-100 text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-violet-900/20"
           >
             {raiseOpt ? "Raise" : "Bet"}
           </button>
@@ -131,7 +131,7 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
             type="button"
             disabled={disabled}
             onClick={() => onAction("all-in")}
-            className="flex-[2] rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-black uppercase tracking-widest transition-all"
+            className="flex-[2] rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-black uppercase tracking-widest transition-all"
           >
             All-in
           </button>

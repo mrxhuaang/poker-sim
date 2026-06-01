@@ -72,9 +72,9 @@ function SeatTimer({
 
   // Color phase based on percentage of NORMAL turn time remaining
   const normalPct = (remainingNormal / turnTime) * 100;
-  let normalColor = "bg-amber-300";
+  let normalColor = "bg-violet-300";
   if (normalPct < 25) normalColor = "bg-rose-400";
-  else if (normalPct < 50) normalColor = "bg-amber-400";
+  else if (normalPct < 50) normalColor = "bg-violet-400";
 
   // Bank phase: always fully red bar, drains
   const bankPct = inBank && timeBank > 0 ? (remainingBank / timeBank) * 100 : 0;
@@ -149,8 +149,8 @@ function ActionToast({ action, amount }: { action: string; amount?: number }) {
   return (
     <div className={`absolute -top-8 left-1/2 -translate-x-1/2 z-50 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl animate-in zoom-in fade-in duration-200 whitespace-nowrap ${
       isFold ? "bg-rose-500/90 text-white" :
-      isAggressive ? "bg-amber-400 text-amber-950" :
-      "bg-amber-600 text-white"
+      isAggressive ? "bg-violet-400 text-violet-950" :
+      "bg-violet-600 text-white"
     }`}>
       {label}{amount ? ` ${formatChips(amount)}` : ""}
     </div>
@@ -198,7 +198,7 @@ function FlyingChip({
       className="absolute z-[45] pointer-events-none"
       style={{ left: `${origin.x}%`, top: `${origin.y}%` }}
     >
-      <div className="w-5 h-5 rounded-full border-2 border-white/40 bg-amber-400 shadow-lg" />
+      <div className="w-5 h-5 rounded-full border-2 border-white/40 bg-violet-400 shadow-lg" />
     </div>
   );
 }
@@ -429,8 +429,8 @@ export function RoundPokerTable({
                   onClick={() => onSit!(i)}
                   className="pointer-events-auto group flex flex-col items-center gap-1.5 cursor-pointer"
                 >
-                  <div className="w-12 h-12 rounded-full bg-zinc-900/60 ring-2 ring-dashed ring-white/15 group-hover:ring-amber-400/50 group-hover:bg-amber-500/8 backdrop-blur-sm transition flex items-center justify-center">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-amber-300">
+                  <div className="w-12 h-12 rounded-full bg-zinc-900/60 ring-2 ring-dashed ring-white/15 group-hover:ring-violet-400/50 group-hover:bg-violet-500/8 backdrop-blur-sm transition flex items-center justify-center">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-violet-300">
                       Sit
                     </span>
                   </div>
@@ -511,7 +511,7 @@ export function RoundPokerTable({
               {isDealt && (
                 <div className={`relative flex gap-0.5 pointer-events-none ${seat.status === "folded" ? "opacity-30 grayscale" : ""}`}>
                   {equities[seat.id] !== undefined && (
-                    <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md px-1.5 py-0.5 rounded text-[10px] font-bold text-amber-400 ring-1 ring-amber-500/25 whitespace-nowrap">
+                    <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md px-1.5 py-0.5 rounded text-[10px] font-bold text-violet-400 ring-1 ring-violet-500/25 whitespace-nowrap">
                       {equities[seat.id]}%
                     </div>
                   )}
@@ -541,9 +541,9 @@ export function RoundPokerTable({
               {/* Avatar */}
               <div className={`relative flex-shrink-0 w-8 h-8 rounded-full ring-2 overflow-hidden transition-all ${
                 isToAct
-                  ? "ring-amber-400 shadow-[0_0_14px_rgba(251,191,36,0.4)]"
+                  ? "ring-violet-400 shadow-[0_0_14px_rgba(124,58,237,0.4)]"
                   : isWinner
-                    ? "ring-amber-400 shadow-[0_0_14px_rgba(251,191,36,0.5)]"
+                    ? "ring-violet-400 shadow-[0_0_14px_rgba(124,58,237,0.5)]"
                     : "ring-zinc-700"
               } ${seat.status === "folded" ? "opacity-40 grayscale" : ""} ${seat.status === "sitting-out" ? "opacity-50 grayscale" : ""}`}>
                 <Avatar seed={seat.seed} size={32} className="ring-0 rounded-none" />
@@ -575,20 +575,20 @@ export function RoundPokerTable({
 
               <div className={`relative min-w-[80px] sm:min-w-[96px] rounded-lg overflow-hidden transition-all duration-300 border-2 ${
                 isToAct
-                  ? "border-amber-400 shadow-[0_0_18px_rgba(251,191,36,0.35)]"
+                  ? "border-violet-400 shadow-[0_0_18px_rgba(124,58,237,0.35)]"
                   : isWinner
-                    ? "border-amber-400 shadow-[0_0_18px_rgba(251,191,36,0.4)]"
+                    ? "border-violet-400 shadow-[0_0_18px_rgba(124,58,237,0.4)]"
                     : "border-zinc-700 shadow-xl"
               }`}>
                 <div className={`flex flex-col bg-zinc-900/95 backdrop-blur-md ${seat.status === "folded" ? "opacity-40 grayscale" : ""}`}>
                   {/* Name */}
-                  <div className={`px-2 pt-1.5 pb-1 border-b border-white/5 text-center ${isToAct ? "bg-amber-500/8" : ""}`}>
+                  <div className={`px-2 pt-1.5 pb-1 border-b border-white/5 text-center ${isToAct ? "bg-violet-500/8" : ""}`}>
                     <span className="text-[11px] font-bold text-zinc-100 truncate block">{seat.name}</span>
                   </div>
                   {/* Chips */}
                   <div className="px-2 py-1.5 text-center bg-black/40 flex items-center justify-center gap-1">
                     {seat.status === "all-in" && (
-                      <span className="text-[8px] font-black uppercase text-amber-400 tracking-widest">AI</span>
+                      <span className="text-[8px] font-black uppercase text-violet-400 tracking-widest">AI</span>
                     )}
                     <span className="text-[10px] sm:text-[11px] text-white font-mono font-black tabular-nums">
                       {formatChips(seat.chips)}
@@ -604,7 +604,7 @@ export function RoundPokerTable({
                     />
                   ) : isToAct ? (
                     <div className="w-full h-1 bg-zinc-800">
-                      <div className="h-full bg-amber-400 w-full" />
+                      <div className="h-full bg-violet-400 w-full" />
                     </div>
                   ) : null}
                 </div>
@@ -627,7 +627,7 @@ export function RoundPokerTable({
               {/* Winner crown */}
               {isWinner && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 animate-bounce z-30">
-                  <div className="bg-amber-400 text-amber-950 p-1 rounded-full shadow-lg">
+                  <div className="bg-violet-400 text-violet-950 p-1 rounded-full shadow-lg">
                     <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                     </svg>
@@ -732,7 +732,7 @@ export function RoundPokerTable({
               </div>
               <div className="flex flex-col items-center gap-1">
                 <span className="text-xs uppercase tracking-[0.3em] text-zinc-500 font-bold">Código de sala</span>
-                <span className="text-4xl font-mono font-black text-amber-400 tracking-[0.2em]">{roomCode}</span>
+                <span className="text-4xl font-mono font-black text-violet-400 tracking-[0.2em]">{roomCode}</span>
               </div>
             </div>
           </div>

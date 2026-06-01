@@ -38,7 +38,7 @@ export function DealControls({
         <button
           type="button"
           onClick={onAdvance}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-700/70 hover:bg-amber-600/75 text-amber-100 font-medium text-sm transition"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-violet-700/70 hover:bg-violet-600/75 text-violet-100 font-medium text-sm transition"
         >
           <Play className="w-4 h-4" />
           {nextLabel}
@@ -58,7 +58,7 @@ export function DealControls({
         <button
           type="button"
           onClick={onShowdown}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-300 hover:bg-amber-200 text-amber-950 font-medium text-sm transition shadow-[0_10px_30px_-10px_rgba(252,211,77,0.6)]"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-violet-300 hover:bg-violet-200 text-violet-950 font-medium text-sm transition shadow-[0_10px_30px_-10px_rgba(124,58,237,0.6)]"
         >
           <Crown className="w-4 h-4" />
           Mostrar ganador

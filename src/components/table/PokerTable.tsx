@@ -559,16 +559,16 @@ function WinnerBanner({
 }) {
   const tie = names.length > 1;
   return (
-    <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-amber-300/10 ring-1 ring-amber-300/40 text-amber-100 shadow-[0_20px_60px_-20px_rgba(252,211,77,0.4)]">
-      <Trophy className="w-5 h-5 text-amber-300" />
+    <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-violet-300/10 ring-1 ring-violet-300/40 text-violet-100 shadow-[0_20px_60px_-20px_rgba(124,58,237,0.4)]">
+      <Trophy className="w-5 h-5 text-violet-300" />
       <div className="flex flex-col">
         <span className="text-sm">
           {tie ? "Empate: " : "Gana "}
-          <span className="font-semibold text-amber-50">
+          <span className="font-semibold text-violet-50">
             {names.join(" · ")}
           </span>
         </span>
-        <span className="text-[11px] text-amber-200/80">{category}</span>
+        <span className="text-[11px] text-violet-200/80">{category}</span>
       </div>
     </div>
   );
@@ -614,7 +614,7 @@ function HostLobby({
           disabled={players.length < 2 || players.length > 9}
           onClick={() => onDeal(players)}
           title={players.length < 2 ? "Se necesitan al menos 2 jugadores" : undefined}
-          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-amber-700/70 hover:bg-amber-600/75 disabled:opacity-30 disabled:cursor-not-allowed text-amber-100 font-medium text-sm transition"
+          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-violet-700/70 hover:bg-violet-600/75 disabled:opacity-30 disabled:cursor-not-allowed text-violet-100 font-medium text-sm transition"
         >
           Repartir ({players.length})
         </button>
