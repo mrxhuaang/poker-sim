@@ -9,28 +9,28 @@ import { PillNav } from "@/components/nav/PillNav";
 
 const ACCENTS = {
   one: {
-    badge: "bg-amber-500/10 text-amber-300 ring-amber-400/25",
-    cta: "bg-amber-950/40 text-amber-200 ring-1 ring-amber-600/40 hover:bg-amber-900/55 hover:ring-amber-500/55 hover:shadow-[0_0_22px_rgba(180,130,40,0.18)]",
-    iconBg: "bg-amber-500/10 text-amber-200 ring-amber-400/20",
-    glow: "38 65 68",
-    glowColors: ["#d4bf94", "#b8994e", "#7a6030"],
-    bg: "rgba(14,12,8,0.85)",
+    badge: "bg-white/[0.06] text-zinc-300 ring-white/12",
+    cta: "bg-white/[0.07] text-zinc-100 ring-1 ring-white/15 hover:bg-white/[0.12] hover:ring-white/25 hover:shadow-[0_0_22px_rgba(255,255,255,0.08)]",
+    iconBg: "bg-white/[0.06] text-zinc-200 ring-white/15",
+    glow: "0 0 82",
+    glowColors: ["#ededf2", "#a0a0a8", "#52525b"],
+    bg: "rgba(9,9,11,0.88)",
   },
   two: {
     badge: "bg-white/[0.06] text-zinc-300 ring-white/12",
-    cta: "bg-amber-950/40 text-amber-200 ring-1 ring-amber-600/40 hover:bg-amber-900/55 hover:ring-amber-500/55",
+    cta: "bg-white/[0.07] text-zinc-100 ring-1 ring-white/15 hover:bg-white/[0.12] hover:ring-white/25",
     iconBg: "bg-white/[0.06] text-zinc-200 ring-white/15",
-    glow: "260 30 68",
-    glowColors: ["#c4bdd8", "#9b93b8", "#6b6380"],
-    bg: "rgba(11,10,14,0.85)",
+    glow: "0 0 75",
+    glowColors: ["#d4d4d8", "#8a8a93", "#3f3f46"],
+    bg: "rgba(9,9,11,0.88)",
   },
   three: {
     badge: "bg-white/[0.05] text-zinc-400 ring-white/10",
-    cta: "bg-amber-950/40 text-amber-200 ring-1 ring-amber-600/40 hover:bg-amber-900/55 hover:ring-amber-500/55",
+    cta: "bg-white/[0.07] text-zinc-100 ring-1 ring-white/15 hover:bg-white/[0.12] hover:ring-white/25",
     iconBg: "bg-white/[0.06] text-zinc-300 ring-white/10",
-    glow: "35 25 52",
-    glowColors: ["#b0a88a", "#7a7260", "#52493a"],
-    bg: "rgba(9,8,6,0.85)",
+    glow: "0 0 60",
+    glowColors: ["#c0c0c8", "#6a6a73", "#3a3a42"],
+    bg: "rgba(9,9,11,0.88)",
   },
 } as const;
 
