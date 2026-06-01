@@ -225,40 +225,51 @@ export default function CreateRoom() {
             </label>
           </BorderGlow>
 
-          {/* Economy mode choice */}
-          <div className="grid grid-cols-2 gap-3">
-            <VisToggle
-              active={economy === "coins"}
-              onClick={() => setEconomy("coins")}
-              icon={<Coins className="w-5 h-5" />}
-              title="Con monedas"
-              sub="Buy-in del wallet · XP"
-            />
-            <VisToggle
-              active={economy === "casual"}
-              onClick={() => setEconomy("casual")}
-              icon={<Users2 className="w-5 h-5" />}
-              title="Casual"
-              sub="Stacks libres · sin cuenta"
-            />
-          </div>
+          {/* Economy + Visibility — compact segmented selectors */}
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <span className="text-[11px] uppercase tracking-[0.2em] text-muted font-bold px-0.5">
+                Modo
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                <OptionPill
+                  active={economy === "coins"}
+                  onClick={() => setEconomy("coins")}
+                  icon={<Coins className="w-4 h-4" />}
+                  label="Con monedas"
+                  sub="Buy-in · XP"
+                />
+                <OptionPill
+                  active={economy === "casual"}
+                  onClick={() => setEconomy("casual")}
+                  icon={<Users2 className="w-4 h-4" />}
+                  label="Casual"
+                  sub="Stack libre"
+                />
+              </div>
+            </div>
 
-          {/* Visibility choice */}
-          <div className="grid grid-cols-2 gap-3">
-            <VisToggle
-              active={isPublic}
-              onClick={() => setIsPublic(true)}
-              icon={<Globe className="w-5 h-5" />}
-              title="Pública"
-              sub="Aparece en el lobby"
-            />
-            <VisToggle
-              active={!isPublic}
-              onClick={() => setIsPublic(false)}
-              icon={<Lock className="w-5 h-5" />}
-              title="Privada"
-              sub="Solo con código"
-            />
+            <div className="flex flex-col gap-2">
+              <span className="text-[11px] uppercase tracking-[0.2em] text-muted font-bold px-0.5">
+                Visibilidad
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                <OptionPill
+                  active={isPublic}
+                  onClick={() => setIsPublic(true)}
+                  icon={<Globe className="w-4 h-4" />}
+                  label="Pública"
+                  sub="En el lobby"
+                />
+                <OptionPill
+                  active={!isPublic}
+                  onClick={() => setIsPublic(false)}
+                  icon={<Lock className="w-4 h-4" />}
+                  label="Privada"
+                  sub="Solo con código"
+                />
+              </div>
+            </div>
           </div>
 
           {error ? (
@@ -280,43 +291,41 @@ export default function CreateRoom() {
   );
 }
 
-function VisToggle({
+function OptionPill({
   active,
   onClick,
   icon,
-  title,
+  label,
   sub,
 }: {
   active: boolean;
   onClick: () => void;
   icon: React.ReactNode;
-  title: string;
+  label: string;
   sub: string;
 }) {
   return (
-    <button type="button" onClick={onClick} className="block text-left btn-press">
-      <BorderGlow
-        className="w-full lg-blur"
-        glowColor={GLOW}
-        colors={GLOW_COLORS}
-        backgroundColor={active ? "var(--lg-bg-active)" : "var(--lg-bg)"}
-        borderRadius={18}
-        glowRadius={26}
-        glowIntensity={active ? 1.2 : 0.8}
-        coneSpread={24}
-        fillOpacity={0.4}
-        animated={active}
-      >
-        <div className="flex flex-col gap-1.5 p-4">
-          <span className={active ? "text-primary" : "text-zinc-500"}>{icon}</span>
-          <span
-            className={`text-sm font-semibold ${active ? "text-primary" : "text-secondary"}`}
-          >
-            {title}
-          </span>
-          <span className="text-[11px] text-muted">{sub}</span>
-        </div>
-      </BorderGlow>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-center gap-3 px-4 py-3 rounded-2xl ring-1 text-left btn-press transition-all ${
+        active
+          ? "bg-white/[0.10] ring-white/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)]"
+          : "bg-white/[0.03] ring-white/[0.08] hover:bg-white/[0.06] hover:ring-white/15"
+      }`}
+      style={{ transitionDuration: "var(--duration-micro)" }}
+    >
+      <span className={`shrink-0 ${active ? "text-accent-400" : "text-zinc-500"}`}>
+        {icon}
+      </span>
+      <span className="flex flex-col min-w-0">
+        <span className={`text-sm font-medium leading-tight ${active ? "text-zinc-50" : "text-zinc-300"}`}>
+          {label}
+        </span>
+        <span className={`text-[11px] leading-tight mt-0.5 ${active ? "text-zinc-400" : "text-zinc-600"}`}>
+          {sub}
+        </span>
+      </span>
     </button>
   );
 }
