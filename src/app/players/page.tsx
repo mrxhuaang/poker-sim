@@ -33,7 +33,7 @@ export default function PlayersPage() {
       <header className="flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl tracking-tight text-zinc-100">Jugadores</h1>
-          <p className="text-sm text-zinc-400 mt-1">
+          <p className="text-sm text-muted mt-1">
             Roster local. Persistido en este navegador.
           </p>
         </div>
@@ -114,13 +114,13 @@ export default function PlayersPage() {
               </Link>
             </div>
           ) : players.length === 1 ? (
-            <p className="text-center text-xs text-zinc-500">
+            <p className="text-center text-xs text-muted">
               Agrega 1 jugador más para poder jugar.
             </p>
           ) : null}
         </>
       ) : (
-        <div className="text-sm text-zinc-500 py-8 text-center">Cargando…</div>
+        <div className="text-sm text-muted py-8 text-center">Cargando…</div>
       )}
     </div>
   );

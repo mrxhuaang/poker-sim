@@ -32,10 +32,10 @@ export default function LobbyPage() {
   return (
     <div className="relative z-[2] w-full max-w-3xl mx-auto px-4 py-10 sm:py-14 flex flex-col gap-8">
       <header className="flex flex-col gap-1">
-        <h1 className="text-2xl sm:text-3xl tracking-tight text-zinc-50 font-semibold">
+        <h1 className="text-2xl sm:text-3xl tracking-tight text-primary font-semibold">
           Lobby
         </h1>
-        <p className="text-sm text-zinc-300">
+        <p className="text-sm text-secondary">
           Mesas abiertas ahora mismo. Entra o crea la tuya.
         </p>
       </header>
@@ -60,7 +60,7 @@ export default function LobbyPage() {
               </span>
               <span className="flex flex-col">
                 <span className="text-sm font-semibold">Crear mesa</span>
-                <span className="text-[11px] text-zinc-400">Pública o privada</span>
+                <span className="text-[11px] text-muted">Pública o privada</span>
               </span>
             </div>
           </BorderGlow>
@@ -83,7 +83,7 @@ export default function LobbyPage() {
               </span>
               <span className="flex flex-col">
                 <span className="text-sm font-semibold">Unirme con código</span>
-                <span className="text-[11px] text-zinc-400">Para salas privadas</span>
+                <span className="text-[11px] text-muted">Para salas privadas</span>
               </span>
             </div>
           </BorderGlow>
@@ -93,7 +93,7 @@ export default function LobbyPage() {
       {/* Live tables */}
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between px-1">
-          <h2 className="text-[11px] uppercase tracking-[0.25em] text-zinc-400 font-bold">
+          <h2 className="text-[11px] uppercase tracking-[0.25em] text-muted font-bold">
             Mesas en vivo {ready && rooms.length > 0 ? `· ${rooms.length}` : ""}
           </h2>
           {!ready && <RefreshCw className="w-3.5 h-3.5 text-zinc-600 animate-spin" />}
@@ -102,7 +102,7 @@ export default function LobbyPage() {
         {ready && rooms.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-14 rounded-2xl border border-white/[0.06] bg-white/[0.02] text-center">
             <Users className="w-7 h-7 text-zinc-600" />
-            <p className="text-sm text-zinc-400">No hay mesas públicas abiertas</p>
+            <p className="text-sm text-secondary">No hay mesas públicas abiertas</p>
             <Link
               href="/create"
               className="mt-1 text-xs font-bold uppercase tracking-widest text-zinc-200 hover:text-white"

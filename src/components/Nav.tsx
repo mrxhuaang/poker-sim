@@ -85,13 +85,13 @@ function ModeCard({
             </span>
           </div>
           <div>
-            <h3 className="text-xl text-zinc-50 font-semibold tracking-tight">{title}</h3>
-            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400 mt-1">{subtitle}</p>
+            <h3 className="text-xl text-primary font-semibold tracking-tight">{title}</h3>
+            <p className="text-xs uppercase tracking-[0.2em] text-muted mt-1">{subtitle}</p>
           </div>
-          <p className="text-sm text-zinc-300/90">{description}</p>
+          <p className="text-sm text-secondary/90">{description}</p>
           <ul className="flex flex-col gap-1.5">
             {features.map((f) => (
-              <li key={f} className="flex items-center gap-2 text-xs text-zinc-400">
+              <li key={f} className="flex items-center gap-2 text-xs text-muted">
                 <span className="w-1 h-1 rounded-full bg-zinc-500" />
                 {f}
               </li>
@@ -173,12 +173,12 @@ function UserPill() {
               {isGuest ? "Invitado" : profile.nickname}
             </div>
             {!isGuest && (
-              <div className="text-[11px] text-zinc-400 flex items-center gap-1.5 mt-0.5">
+              <div className="text-[11px] text-muted flex items-center gap-1.5 mt-0.5">
                 <Trophy className="w-3 h-3" />
                 Nivel {profile.level} · {profile.title}
               </div>
             )}
-            <div className="text-[11px] text-zinc-400 flex items-center gap-1.5 mt-1">
+            <div className="text-[11px] text-muted flex items-center gap-1.5 mt-1">
               <Coins className="w-3 h-3" />
               {formatChips(availableCoins(profile))} monedas
             </div>

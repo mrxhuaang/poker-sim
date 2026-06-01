@@ -89,10 +89,10 @@ export default function CreateRoom() {
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-50">
+          <h1 className="text-2xl font-semibold tracking-tight text-primary">
             Crear mesa
           </h1>
-          <p className="text-sm text-zinc-400">
+          <p className="text-sm text-muted">
             Las ciegas, stack y tiempo se ajustan dentro de la sala.
           </p>
         </div>
@@ -113,7 +113,7 @@ export default function CreateRoom() {
           animated
         >
           <div className="flex flex-col items-center gap-5 p-7 text-center">
-            <span className="text-[10px] uppercase tracking-[0.4em] text-zinc-500 font-bold">
+            <span className="text-[10px] uppercase tracking-[0.4em] text-muted font-bold">
               {isPublic ? "Mesa pública creada" : "Mesa privada creada"}
             </span>
 
@@ -141,7 +141,7 @@ export default function CreateRoom() {
               )}
             </button>
 
-            <p className="text-xs text-zinc-500 -mt-1">
+            <p className="text-xs text-muted -mt-1">
               {isPublic
                 ? "Ya aparece en el lobby. Comparte el código, el enlace o el QR."
                 : "Sala privada: solo con el código o el enlace pueden entrar."}
@@ -211,7 +211,7 @@ export default function CreateRoom() {
             animated={false}
           >
             <label className="flex flex-col gap-1.5 p-4">
-              <span className="text-[11px] uppercase tracking-[0.2em] text-zinc-500 font-bold">
+              <span className="text-[11px] uppercase tracking-[0.2em] text-muted font-bold">
                 Nombre de la mesa
               </span>
               <input
@@ -308,13 +308,13 @@ function VisToggle({
         animated={active}
       >
         <div className="flex flex-col gap-1.5 p-4">
-          <span className={active ? "text-zinc-50" : "text-zinc-500"}>{icon}</span>
+          <span className={active ? "text-primary" : "text-zinc-500"}>{icon}</span>
           <span
-            className={`text-sm font-semibold ${active ? "text-zinc-50" : "text-zinc-300"}`}
+            className={`text-sm font-semibold ${active ? "text-primary" : "text-secondary"}`}
           >
             {title}
           </span>
-          <span className="text-[11px] text-zinc-400">{sub}</span>
+          <span className="text-[11px] text-muted">{sub}</span>
         </div>
       </BorderGlow>
     </button>

@@ -37,7 +37,7 @@ function JoinInner() {
     <div className="w-full max-w-md mx-auto px-4 py-16 flex flex-col items-center gap-6">
       <Smartphone className="w-10 h-10 text-zinc-400" />
       <h1 className="text-2xl tracking-tight text-zinc-100">Unirse a sala</h1>
-      <p className="text-sm text-zinc-400 text-center">
+      <p className="text-sm text-muted text-center">
         Ingresa el código que aparece en la pantalla grande.
       </p>
       <BorderGlow

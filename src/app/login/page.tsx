@@ -82,10 +82,10 @@ export default function LoginPage() {
         >
           <div className="flex flex-col gap-6 p-7 sm:p-9">
             <header className="flex flex-col gap-2 text-center">
-              <h1 className="text-2xl font-semibold tracking-tight text-zinc-50">
+              <h1 className="text-2xl font-semibold tracking-tight text-primary">
                 Inicia sesion
               </h1>
-              <p className="text-sm text-zinc-400">
+              <p className="text-sm text-muted">
                 Guarda tu progreso, monedas y rango. Tu partida como invitado se
                 conserva al entrar.
               </p>
@@ -93,7 +93,7 @@ export default function LoginPage() {
 
             {alreadyLoggedIn ? (
               <div className="flex flex-col gap-3">
-                <p className="text-center text-sm text-zinc-300">
+                <p className="text-center text-sm text-secondary">
                   Ya tienes una sesion activa.
                 </p>
                 <Link

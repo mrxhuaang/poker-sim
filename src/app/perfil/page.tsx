@@ -93,10 +93,10 @@ export default function PerfilPage() {
             <div className="flex flex-col gap-5 p-8 text-center">
               <Sparkles className="w-7 h-7 mx-auto text-zinc-300" />
               <div>
-                <h1 className="text-xl font-semibold text-zinc-50">
+                <h1 className="text-xl font-semibold text-primary">
                   Crea tu cuenta
                 </h1>
-                <p className="text-sm text-zinc-400 mt-2">
+                <p className="text-sm text-muted mt-2">
                   Inicia sesion para tener perfil, monedas, rango por experiencia
                   e historial de partidas.
                 </p>
@@ -229,7 +229,7 @@ export default function PerfilPage() {
                 </div>
               ) : (
                 <div className="flex items-center gap-2 justify-center sm:justify-start">
-                  <h1 className="text-2xl font-semibold tracking-tight text-zinc-50 truncate">
+                  <h1 className="text-2xl font-semibold tracking-tight text-primary truncate">
                     {profile.nickname}
                   </h1>
                   <button
@@ -245,7 +245,7 @@ export default function PerfilPage() {
                   </button>
                 </div>
               )}
-              <p className="text-xs text-zinc-400 mt-1">
+              <p className="text-xs text-muted mt-1">
                 {profile.email ?? "Cuenta de invitado"} · desde {memberSince}
               </p>
               {rank && (
@@ -288,10 +288,10 @@ export default function PerfilPage() {
 
               {/* Info del rango */}
               <div className="flex-1 min-w-0">
-                <div className="text-xl font-bold tracking-tight text-zinc-50">
+                <div className="text-xl font-bold tracking-tight text-primary">
                   {rank.name}
                 </div>
-                <div className="text-xs text-zinc-500 mt-0.5">
+                <div className="text-xs text-muted mt-0.5">
                   Nivel {prog.level}{prog.level >= MAX_LEVEL ? " · Máximo" : ""}
                 </div>
                 <div className="flex items-center justify-between mt-3">
@@ -299,7 +299,7 @@ export default function PerfilPage() {
                     {formatChips(profile.xp)} XP
                   </span>
                   {!prog.isMax && (
-                    <span className="text-[11px] text-zinc-500">
+                    <span className="text-[11px] text-muted">
                       {formatChips(prog.span - prog.xpIntoLevel)} para nivel {prog.level + 1}
                     </span>
                   )}
@@ -340,13 +340,13 @@ export default function PerfilPage() {
                 <Coins className="w-5 h-5" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-zinc-50 tabular-nums">
+                <div className="text-2xl font-bold text-primary tabular-nums">
                   {formatChips(availableCoins(profile))}
                 </div>
-                <div className="text-xs text-zinc-500">
+                <div className="text-xs text-muted">
                   monedas disponibles
                   {locked > 0 && (
-                    <span className="text-zinc-400">
+                    <span className="text-secondary">
                       {" "}
                       · {formatChips(locked)} en juego
                     </span>
@@ -365,7 +365,7 @@ export default function PerfilPage() {
                 {bonusReady ? "Bono diario" : "Bono reclamado"}
               </button>
               {claimMsg && (
-                <span className="text-[11px] text-zinc-400">{claimMsg}</span>
+                <span className="text-[11px] text-muted">{claimMsg}</span>
               )}
             </div>
           </div>
@@ -390,7 +390,7 @@ export default function PerfilPage() {
             </h2>
           </div>
           {history.length === 0 ? (
-            <p className="text-sm text-zinc-500 py-4 text-center">
+            <p className="text-sm text-muted py-4 text-center">
               Aun no has jugado ninguna partida online.
             </p>
           ) : (
@@ -404,7 +404,7 @@ export default function PerfilPage() {
                     <div className="text-sm text-zinc-200 truncate">
                       {h.roomName || "Sala"}
                     </div>
-                    <div className="text-[11px] text-zinc-500">
+                    <div className="text-[11px] text-muted">
                       {new Date(h.ts).toLocaleDateString("es")} · {h.handsPlayed}{" "}
                       manos · +{h.xpGained} XP
                     </div>
@@ -445,10 +445,10 @@ function Card({ children }: { children: React.ReactNode }) {
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-2xl font-bold text-zinc-50 tabular-nums">
+      <span className="text-2xl font-bold text-primary tabular-nums">
         {value}
       </span>
-      <span className="text-[11px] uppercase tracking-[0.15em] text-zinc-500">
+      <span className="text-[11px] uppercase tracking-[0.15em] text-muted">
         {label}
       </span>
     </div>
