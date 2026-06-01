@@ -14,13 +14,13 @@ export type Title = { level: number; name: string; emblem: string };
 
 // Titulos desbloqueables por umbral de nivel (ordenados ascendente).
 export const TITLES: Title[] = [
-  { level: 1,  name: "Peon",     emblem: "/ranks/peon.png"     },
-  { level: 10, name: "Fullero",  emblem: "/ranks/fullero.png"  },
-  { level: 20, name: "Sicario",  emblem: "/ranks/sicario.png"  },
-  { level: 35, name: "Capo",     emblem: "/ranks/capo.png"     },
-  { level: 50, name: "Verdugo",  emblem: "/ranks/verdugo.png"  },
-  { level: 70, name: "Espectro", emblem: "/ranks/espectro.png" },
-  { level: 90, name: "Noir",     emblem: "/ranks/noir.png"     },
+  { level: 1,  name: "Peon",     emblem: "/rangos/peon.png"     },
+  { level: 10, name: "Fullero",  emblem: "/rangos/fullero.png"  },
+  { level: 20, name: "Sicario",  emblem: "/rangos/sicario.png"  },
+  { level: 35, name: "Capo",     emblem: "/rangos/capo.png"     },
+  { level: 50, name: "Verdugo",  emblem: "/rangos/padrino.png"  },
+  { level: 70, name: "Espectro", emblem: "/rangos/espectro.png" },
+  { level: 90, name: "Noir",     emblem: "/rangos/noir.png"     },
 ];
 
 export function rankForLevel(level: number): Title {

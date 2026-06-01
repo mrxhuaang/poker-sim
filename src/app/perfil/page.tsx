@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import {
@@ -249,8 +250,7 @@ export default function PerfilPage() {
               </p>
               {rank && (
                 <span className="inline-flex items-center gap-2 mt-2 text-[10px] uppercase tracking-[0.2em] px-2 py-1 rounded-full ring-1 bg-white/[0.05] text-zinc-300 ring-white/15">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={rank.emblem} alt={rank.name} className="w-5 h-5 object-contain" />
+                  <Image src={rank.emblem} alt={rank.name} width={20} height={20} className="object-contain" />
                   {rank.name}
                 </span>
               )}
@@ -273,11 +273,13 @@ export default function PerfilPage() {
             <div className="flex items-center gap-5 mb-5">
               {/* Escudo del rango */}
               <div className="relative shrink-0">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src={rank.emblem}
                   alt={rank.name}
-                  className="w-20 h-20 object-contain drop-shadow-[0_0_18px_rgba(167,139,250,0.35)]"
+                  width={80}
+                  height={80}
+                  className="object-contain drop-shadow-[0_0_18px_rgba(167,139,250,0.35)]"
+                  priority
                 />
                 <span className="absolute -bottom-1 -right-1 min-w-[22px] h-[22px] px-1 rounded-full bg-zinc-900 ring-2 ring-zinc-950 text-[10px] font-black text-zinc-100 flex items-center justify-center tabular-nums">
                   {prog.level}
