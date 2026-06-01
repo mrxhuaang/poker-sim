@@ -5,7 +5,6 @@ import {
   handleAction,
   startHand,
   computeSidePots,
-  distributeRunPot,
 } from "@/lib/betting";
 import type { NormalRoomDoc, PendingAction, NormalLobbyPlayer } from "@/lib/normalRooms";
 import {
@@ -20,19 +19,31 @@ import type { Category } from "@/lib/handEval";
 import { writeHandRecord } from "@/lib/handHistory";
 import type { Card } from "@/lib/poker";
 import { makeDeck, shuffle } from "@/lib/poker";
+import {
+  chooseRunCount,
+  maxRunCountForState,
+  resolveRunItN,
+  runOptionsForState,
+  type RunItRun,
+} from "@/lib/runIt";
 
 export type RunRecord = {
   community: Card[];
   winners: string[];
   category: Category;
-};
+} & Partial<RunItRun>;
+
+const ALL_IN_VOTE_TIMEOUT_MS = 15_000;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-// Deal next community street for all-in runout.
-// Preserves all NormalGameState fields (betting.toActId stays null).
+function toPublicState(gs: NormalGameState) {
+  const { deck, ...rest } = gs;
+  return { ...rest, deckCount: deck.length };
+}
+
 function dealAllInStreet(s: NormalGameState): NormalGameState {
   const newDeck = [...s.deck];
   const newBurns = [...s.burns];
@@ -53,9 +64,26 @@ function dealAllInStreet(s: NormalGameState): NormalGameState {
   return { ...s, deck: newDeck, burns: newBurns, community: newCommunity, street: newStreet, phase: newPhase };
 }
 
-function toPublicState(gs: NormalGameState) {
-  const { deck, ...rest } = gs;
-  return { ...rest, deckCount: deck.length };
+function withRunoutDeck(
+  state: NormalGameState,
+  holeCards: Record<string, [Card, Card]>,
+  runCount: number,
+): NormalGameState {
+  const needed = runCount * (state.street === "preflop" ? 8 : state.street === "flop" ? 4 : state.street === "turn" ? 2 : 0);
+  if (needed === 0 || state.deck.length >= needed) return state;
+
+  const known = new Set<string>();
+  for (const c of state.community) known.add(c.id);
+  for (const c of state.burns) known.add(c.id);
+  for (const h of Object.values(holeCards)) {
+    known.add(h[0].id);
+    known.add(h[1].id);
+  }
+
+  return {
+    ...state,
+    deck: shuffle(makeDeck()).filter((c) => !known.has(c.id)),
+  };
 }
 
 type UseNormalGameReturn = {
@@ -80,6 +108,7 @@ export function useNormalGame(
   const [gameState, setGameState] = useState<NormalGameState | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [runs, setRuns] = useState<RunRecord[] | null>(null);
+  const [negotiationTick, setNegotiationTick] = useState(0);
   const handNumRef = useRef(0);
   const dealerIdxRef = useRef(-1);
   const isAdminRef = useRef(false);
@@ -355,6 +384,33 @@ export function useNormalGame(
     setGameState({ ...rest, deck: [] } as NormalGameState);
   }, [room?.state]);
 
+  const remoteRunVotes = room?.state?.allInNegotiation?.votes;
+  const remoteRunVotesKey = remoteRunVotes ? JSON.stringify(remoteRunVotes) : "";
+
+  // The admin owns the local deck, but players write run-it-N votes directly to
+  // Firestore. Merge only the vote map back into the admin state.
+  useEffect(() => {
+    if (!isAdminRef.current || !remoteRunVotes || !room?.state?.allInNegotiation) return;
+    setGameState((prev) => {
+      if (!prev?.allInNegotiation) return prev;
+      if (prev.betting.handNum !== room.state?.betting.handNum) return prev;
+      const mergedVotes = { ...prev.allInNegotiation.votes, ...remoteRunVotes };
+      const changed =
+        Object.keys(mergedVotes).length !== Object.keys(prev.allInNegotiation.votes).length ||
+        Object.entries(mergedVotes).some(
+          ([playerId, vote]) => prev.allInNegotiation?.votes[playerId] !== vote,
+        );
+      if (!changed) return prev;
+      return {
+        ...prev,
+        allInNegotiation: {
+          ...prev.allInNegotiation,
+          votes: mergedVotes,
+        },
+      };
+    });
+  }, [remoteRunVotes, remoteRunVotesKey, room?.state?.allInNegotiation, room?.state?.betting.handNum]);
+
   // Admin: process pending actions from players
   useEffect(() => {
     if (!isAdminRef.current || !code || !room?.pendingAction || !gameState)
@@ -476,8 +532,173 @@ export function useNormalGame(
     return () => clearTimeout(t);
   }, [room?.result, room?.state?.seats, code, isProcessing, startNewHand]);
 
-  // Admin: Auto-advance street if round is complete or all-in.
-  // Run-it-N-times removed — all-in always runs once automatically.
+  // Admin: negotiate and execute run-it-N when all remaining players are all-in
+  // or no player has further betting action.
+  useEffect(() => {
+    if (!isAdminRef.current || !gameState || !code) return;
+    if (gameState.phase === "showdown" || gameState.phase === "between-hands") return;
+
+    const unfolded = gameState.seats.filter((s) => s.status !== "folded" && s.status !== "out");
+    if (unfolded.length <= 1) return;
+    if (gameState.betting.toActId !== null) return;
+
+    if (gameState.street === "river") {
+      if (!isProcessing) void resolveShowdown();
+      return;
+    }
+
+    const thisHand = gameState.betting.handNum;
+    const allHoles = { ...dealtHolesRef.current, ...holeCards };
+
+    if (gameState.phase !== "all-in-negotiation" || !gameState.allInNegotiation) {
+      if (allInTriggeredHandRef.current === thisHand) return;
+      allInTriggeredHandRef.current = thisHand;
+      const runState = withRunoutDeck(gameState, allHoles, 1);
+      const next: NormalGameState = {
+        ...runState,
+        phase: "all-in-negotiation",
+        allInNegotiation: {
+          playerIds: unfolded.map((s) => s.id),
+          votes: {},
+          options: runOptionsForState(runState),
+          createdAt: Date.now(),
+        },
+      };
+      setGameState(next);
+      patchNormalRoom(code, { state: toPublicState(next) }).catch(() => {
+        allInTriggeredHandRef.current = -1;
+      });
+      return;
+    }
+
+    const neg = gameState.allInNegotiation;
+    const maxRuns = maxRunCountForState(withRunoutDeck(gameState, allHoles, 1));
+    const allVoted = neg.playerIds.every((id) => typeof neg.votes[id] === "number");
+    const createdAt = neg.createdAt ?? Date.now();
+    const elapsed = Date.now() - createdAt;
+    if (!allVoted && elapsed < ALL_IN_VOTE_TIMEOUT_MS) {
+      const t = setTimeout(
+        () => setNegotiationTick(Date.now()),
+        Math.max(250, ALL_IN_VOTE_TIMEOUT_MS - elapsed),
+      );
+      return () => clearTimeout(t);
+    }
+
+    if (allInRanHandRef.current === thisHand) return;
+    allInRanHandRef.current = thisHand;
+
+    setTimeout(() => {
+      setIsProcessing(true);
+      (async () => {
+        try {
+          const runCount = chooseRunCount(neg.votes, neg.playerIds, maxRuns);
+          const revealedHoles: Record<string, [Card, Card]> = {};
+          for (const u of unfolded) {
+            const cards = allHoles[u.id];
+            if (cards) revealedHoles[u.id] = cards;
+          }
+
+          const revealedSeats = gameState.seats.map((seat) => ({
+            ...seat,
+            revealed: seat.status !== "folded" && seat.status !== "out",
+          }));
+          let s = withRunoutDeck(
+            {
+              ...gameState,
+              seats: revealedSeats,
+              allInNegotiation: { ...neg, agreedN: runCount },
+            },
+            allHoles,
+            runCount,
+          );
+
+          setGameState(s);
+          await patchNormalRoom(code, {
+            state: toPublicState(s),
+            revealedHoles,
+          });
+
+          await sleep(800);
+
+          const resolution = resolveRunItN(s, allHoles, runCount);
+          setRuns(resolution.runs);
+
+          for (let idx = 0; idx < resolution.runs.length; idx++) {
+            const run = resolution.runs[idx];
+            for (const step of run.steps) {
+              await sleep(idx === 0 && step.street === "flop" ? 900 : 650);
+              s = {
+                ...s,
+                community: step.community,
+                street: step.street,
+                phase: step.street,
+              };
+              setGameState(s);
+              await patchNormalRoom(code, { state: toPublicState(s) });
+            }
+            await sleep(500);
+          }
+
+          const newChips: Record<string, number> = {};
+          for (const seat of gameState.seats) {
+            newChips[seat.id] = seat.chips + (resolution.winningsByPlayer[seat.id] ?? 0);
+          }
+
+          const finalSeats = gameState.seats.map((seat) => ({
+            ...seat,
+            chips: newChips[seat.id] ?? seat.chips,
+            revealed: seat.status !== "folded",
+            bet: 0,
+            totalBet: 0,
+            status: (newChips[seat.id] ?? seat.chips) === 0 ? ("out" as const) : ("waiting" as const),
+          }));
+
+          const winnerInfo = Object.entries(resolution.winningsByPlayer)
+            .filter(([, amount]) => amount > 0)
+            .map(([id, amount]) => ({
+              id,
+              name: finalSeats.find((seat) => seat.id === id)?.name ?? id,
+              amount,
+            }));
+
+          const finalState: NormalGameState = {
+            ...s,
+            deck: resolution.finalDeck,
+            burns: resolution.finalBurns,
+            seats: finalSeats,
+            phase: "showdown",
+            allInNegotiation: undefined,
+          };
+          setGameState(finalState);
+
+          await patchNormalRoom(code, {
+            state: toPublicState(finalState),
+            result: {
+              scores: {},
+              winners: resolution.winners,
+              category: resolution.category,
+              chips: newChips,
+            },
+            runResults: resolution.runs,
+          });
+
+          writeHandRecord(code, {
+            handNum: gameState.betting.handNum,
+            winners: winnerInfo,
+            category: resolution.category,
+            pot: gameState.betting.pot,
+            community: resolution.runs.map((run) => run.community.map((c) => c.id).join(" ")),
+          }).catch(() => {});
+        } catch {
+          allInRanHandRef.current = -1;
+        } finally {
+          setIsProcessing(false);
+        }
+      })();
+    }, 0);
+  }, [gameState, code, isProcessing, resolveShowdown, holeCards, negotiationTick]);
+
+  // Admin: Auto-resolve when only one player remains.
   useEffect(() => {
     if (!isAdminRef.current || !gameState || !code) return;
     if (gameState.phase === "showdown" || gameState.phase === "between-hands") return;
@@ -498,7 +719,7 @@ export function useNormalGame(
     // flight, leaving every player all-in and the board frozen (BUG-B).
     const isAllInRunout = gameState.betting.toActId === null && unfolded.length >= 2;
 
-    if (isAllInRunout) {
+    if (gameState.betting.handNum === -1 && isAllInRunout) {
       const thisHand = gameState.betting.handNum;
       if (allInRanHandRef.current === thisHand) return;
       allInRanHandRef.current = thisHand;
