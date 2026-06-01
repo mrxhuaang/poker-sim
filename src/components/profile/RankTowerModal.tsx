@@ -22,14 +22,14 @@ const RANK_META: Record<string, {
     flavor: "Todo empieza aqui. La mesa te desconoce.",
     initial: "P",
   },
-  Fullero: {
+  Timador: {
     color: "text-amber-500",
     colorHex: "#f59e0b",
     glowHex: "rgba(245,158,11,0.45)",
     borderHex: "rgba(245,158,11,0.3)",
     bgGradient: "linear-gradient(135deg, rgba(41,27,8,0.95) 0%, rgba(28,18,5,0.8) 100%)",
-    flavor: "Aprendes los trucos. Las cartas empiezan a obedecerte.",
-    initial: "F",
+    flavor: "Nadie sabe como lo haces. Las cartas mienten por ti.",
+    initial: "T",
   },
   Sicario: {
     color: "text-slate-300",

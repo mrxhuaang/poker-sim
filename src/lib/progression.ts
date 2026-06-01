@@ -15,7 +15,7 @@ export type Title = { level: number; name: string; emblem: string };
 // Titulos desbloqueables por umbral de nivel (ordenados ascendente).
 export const TITLES: Title[] = [
   { level: 1,  name: "Peon",     emblem: "/rangos/peon.png"     },
-  { level: 10, name: "Fullero",  emblem: "/rangos/fullero.png"  },
+  { level: 10, name: "Timador",  emblem: "/rangos/timador.png"  },
   { level: 20, name: "Sicario",  emblem: "/rangos/sicario.png"  },
   { level: 35, name: "Capo",     emblem: "/rangos/capo.png"     },
   { level: 50, name: "Verdugo",  emblem: "/rangos/padrino.png"  },
