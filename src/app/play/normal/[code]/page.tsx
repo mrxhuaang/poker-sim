@@ -85,6 +85,9 @@ export default function PlayNormalPage() {
   const boughtInRef = useRef(0);
   const countedHandRef = useRef(-1);
   const settledRef = useRef(false);
+  // Snapshot del estado vivo para el cleanup de desmontaje (navegacion SPA).
+  // Un effect con deps vacias captura valores stale, por eso leemos un ref.
+  const liveRef = useRef({ inLobby: false, spectating: false, finalChips: 0, escrow: 0 });
 
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [myRequest, setMyRequest] = useState<StackRequest | null | undefined>(
@@ -109,7 +112,7 @@ export default function PlayNormalPage() {
     return () => {
       leaveSpectators(code, uid).catch(() => {});
     };
-  }, [code, uid, spectating]);
+  }, [code, uid, spectating, profile?.nickname]);
 
   useEffect(() => {
     if (!code || !uid) return;
@@ -140,6 +143,14 @@ export default function PlayNormalPage() {
   const mySeat = gs?.seats.find((s) => s.id === uid) ?? null;
   const result = room?.result ?? null;
 
+  // Mantener el snapshot al dia para el cleanup de desmontaje.
+  liveRef.current = {
+    inLobby,
+    spectating,
+    finalChips: mySeat?.chips ?? myLobbyEntry?.chips ?? 0,
+    escrow: (code && profile?.escrows?.[code]) || 0,
+  };
+
   // Publish our public key into the lobby so the host can encrypt our hole
   // cards to it. Runs once we're in the lobby and re-publishes only if missing.
   const myPubKey = myLobbyEntry?.pubKey;
@@ -166,6 +177,42 @@ export default function PlayNormalPage() {
     const pot = gs.betting.pot ?? 0;
     if (pot > biggestPotRef.current) biggestPotRef.current = pot;
   }, [result, gs, uid, inLobby]);
+
+  // Liquidacion al desmontar (navegacion SPA): evita que el escrow quede
+  // bloqueado si el jugador se va sin pulsar "Salir". El cierre de pestana no
+  // garantiza writes async, pero la navegacion interna del SPA si. Usa el
+  // snapshot de liveRef (no closures stale) y se salta si ya se liquido.
+  useEffect(() => {
+    return () => {
+      if (!uid || !code) return;
+      const s = liveRef.current;
+      if (s.spectating) {
+        leaveSpectators(code, uid).catch(() => {});
+        return;
+      }
+      if (settledRef.current) return;
+      settledRef.current = true;
+      if (s.inLobby) {
+        cashOut(uid, code, s.finalChips).catch(() => {});
+        const handsPlayed = handsPlayedRef.current;
+        if (handsPlayed > 0) {
+          recordSession(uid, {
+            code,
+            roomName: room?.roomName ?? `Sala ${code}`,
+            handsPlayed,
+            handsWon: handsWonRef.current,
+            net: s.finalChips - boughtInRef.current,
+            biggestPot: biggestPotRef.current,
+            xpGained: sessionXp(handsPlayed, handsWonRef.current),
+          }).catch(() => {});
+        }
+      } else if (s.escrow > 0) {
+        // Solicitud pendiente nunca aprobada: devolver el escrow exacto.
+        refundBuyIn(uid, code, s.escrow).catch(() => {});
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, code]);
 
   const placeholderSeats: NormalSeat[] = useMemo(() => {
     if (gs) return gs.seats as NormalSeat[];
@@ -235,7 +282,8 @@ export default function PlayNormalPage() {
         ts: Date.now(),
       });
     } catch (err) {
-      await cashOut(uid, code, stack).catch(() => {});
+      // Revertir SOLO el rebuy (no borrar el escrow completo del buy-in previo).
+      await refundBuyIn(uid, code, stack).catch(() => {});
       boughtInRef.current -= stack;
       throw err;
     }
@@ -270,8 +318,32 @@ export default function PlayNormalPage() {
 
   // Auto-open vote modal exactly once per all-in hand, only for involved players
 
+  // Rebuy rechazado por el host: el jugador sigue sentado y no hay pantalla de
+  // rechazo dedicada, asi que devolvemos el escrow automaticamente y descartamos.
+  // (El rechazo de "join" se maneja en handleRetry con su pantalla propia.)
+  useEffect(() => {
+    if (!uid || !code) return;
+    if (myRequest?.status !== "rejected" || myRequest.type !== "rebuy") return;
+    const amt = myRequest.requestedStack ?? 0;
+    (async () => {
+      if (amt > 0) {
+        await refundBuyIn(uid, code, amt).catch(() => {});
+        boughtInRef.current = Math.max(0, boughtInRef.current - amt);
+      }
+      await dismissStackRequest(code, uid).catch(() => {});
+      setMyRequest(null);
+    })();
+  }, [myRequest?.status, myRequest?.type, myRequest?.requestedStack, uid, code]);
+
   async function handleRetry() {
     if (!uid || !code) return;
+    // El host rechazo la solicitud: devolver el escrow comprometido en el buy-in
+    // antes de descartar la solicitud (si no, las monedas quedan bloqueadas).
+    const amt = myRequest?.requestedStack ?? 0;
+    if (amt > 0) {
+      await refundBuyIn(uid, code, amt).catch(() => {});
+      boughtInRef.current = Math.max(0, boughtInRef.current - amt);
+    }
     await dismissStackRequest(code, uid);
     setMyRequest(null);
   }
