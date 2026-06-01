@@ -44,10 +44,10 @@ export default function LobbyPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Link href="/create" className="group block btn-press">
           <BorderGlow
-            className="w-full"
+            className="w-full lg-blur"
             glowColor={GLOW}
             colors={GLOW_COLORS}
-            backgroundColor="rgba(12,12,14,0.85)"
+            backgroundColor="var(--lg-bg)"
             borderRadius={18}
             glowRadius={28}
             glowIntensity={0.95}
@@ -67,10 +67,10 @@ export default function LobbyPage() {
         </Link>
         <Link href="/join" className="group block btn-press">
           <BorderGlow
-            className="w-full"
+            className="w-full lg-blur"
             glowColor={GLOW}
             colors={GLOW_COLORS}
-            backgroundColor="rgba(12,12,14,0.85)"
+            backgroundColor="var(--lg-bg)"
             borderRadius={18}
             glowRadius={28}
             glowIntensity={0.95}
@@ -129,10 +129,10 @@ function RoomCard({ room }: { room: OpenRoomSummary }) {
   const isFull = room.status === "full";
   return (
     <BorderGlow
-      className="w-full"
+      className="w-full lg-blur"
       glowColor={GLOW}
       colors={GLOW_COLORS}
-      backgroundColor="rgba(11,11,13,0.85)"
+      backgroundColor="var(--lg-bg)"
       borderRadius={18}
       glowRadius={26}
       glowIntensity={0.9}
