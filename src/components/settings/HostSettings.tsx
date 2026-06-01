@@ -201,12 +201,12 @@ export function HostSettings(props: Props) {
                 <span className="text-[10px] uppercase tracking-widest font-black text-zinc-500">
                   Mano #{h.handNum}
                 </span>
-                <span className="text-[10px] tabular-nums text-accent font-black">
+                <span className="text-[10px] tabular-nums text-zinc-300 font-black">
                   {formatChips(h.pot)}
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <Trophy className="w-3 h-3 text-amber-400 flex-shrink-0" />
+                <Trophy className="w-3 h-3 text-zinc-300 flex-shrink-0" />
                 <span className="text-xs text-zinc-100 font-bold truncate">
                   {h.winners.map((w) => `${w.name} +${formatChips(w.amount)}`).join(" · ")}
                 </span>

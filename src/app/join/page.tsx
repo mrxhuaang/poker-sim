@@ -43,13 +43,13 @@ function JoinInner() {
         className="w-full"
         edgeSensitivity={26}
         glowColor="152 70 46"
-        backgroundColor="rgba(10, 12, 18, 0.92)"
+        backgroundColor="rgba(14, 12, 9, 0.92)"
         borderRadius={22}
         glowRadius={32}
         glowIntensity={1}
         coneSpread={24}
         animated={false}
-        colors={["#34d399", "#38bdf8", "#a78bfa"]}
+        colors={["#d4bf94", "#9a8459", "#5f5138"]}
         fillOpacity={0.48}
       >
         <form onSubmit={submit} className="flex w-full flex-col gap-3 p-5">

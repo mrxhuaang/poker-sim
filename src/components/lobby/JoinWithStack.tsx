@@ -13,6 +13,8 @@ type Props = {
   // When true (join flow): show avatar picker + BorderGlow + room code header.
   showAvatar?: boolean;
   roomCode?: string;
+  // Saldo disponible del wallet: el stack no puede excederlo.
+  maxStack?: number;
   onSubmit: (name: string, stack: number, seed: string) => Promise<void>;
 };
 
@@ -23,21 +25,27 @@ export function JoinWithStack({
   locked = false,
   showAvatar = false,
   roomCode,
+  maxStack,
   onSubmit,
 }: Props) {
+  const cap = maxStack !== undefined ? Math.max(0, Math.floor(maxStack)) : undefined;
   const [name, setName] = useState(defaultName);
-  const [stack, setStack] = useState(suggestedStack);
+  const [stack, setStack] = useState(
+    cap !== undefined ? Math.min(suggestedStack, cap) : suggestedStack,
+  );
   const [seed, setSeed] = useState(() => randomSeed());
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  const overCap = cap !== undefined && stack > cap;
+  const broke = cap !== undefined && cap <= 0;
   const nameError = submitted && !name.trim();
   const stackError = submitted && stack <= 0;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitted(true);
-    if (!name.trim() || stack <= 0 || locked) return;
+    if (!name.trim() || stack <= 0 || locked || overCap || broke) return;
     setLoading(true);
     try {
       await onSubmit(name.trim(), stack, seed);
@@ -105,16 +113,42 @@ export function JoinWithStack({
           {suggestedStack > 0 && (
             <button
               type="button"
-              onClick={() => setStack(suggestedStack)}
+              onClick={() =>
+                setStack(cap !== undefined ? Math.min(suggestedStack, cap) : suggestedStack)
+              }
               className="px-3 py-3 rounded-2xl text-xs text-zinc-400 glass ring-1 ring-white/8 hover:bg-white/10 transition"
             >
               ×1
             </button>
           )}
+          {cap !== undefined && cap > 0 && (
+            <button
+              type="button"
+              onClick={() => setStack(cap)}
+              className="px-3 py-3 rounded-2xl text-xs text-zinc-400 glass ring-1 ring-white/8 hover:bg-white/10 transition"
+            >
+              Máx
+            </button>
+          )}
         </div>
+        {cap !== undefined && (
+          <p className="text-[11px] text-zinc-500 tabular-nums">
+            Saldo disponible: {cap.toLocaleString("es")} monedas
+          </p>
+        )}
         {stackError && (
           <span className="flex items-center gap-1 text-[11px] text-rose-400">
             <AlertCircle className="w-3 h-3 flex-shrink-0" /> Ingresa un monto mayor a 0
+          </span>
+        )}
+        {overCap && !broke && (
+          <span className="flex items-center gap-1 text-[11px] text-rose-400">
+            <AlertCircle className="w-3 h-3 flex-shrink-0" /> No tienes monedas suficientes
+          </span>
+        )}
+        {broke && (
+          <span className="flex items-center gap-1 text-[11px] text-rose-400">
+            <AlertCircle className="w-3 h-3 flex-shrink-0" /> Sin monedas. Vuelve al lobby para el rescate diario.
           </span>
         )}
         {!showAvatar && (
@@ -132,7 +166,7 @@ export function JoinWithStack({
 
       <button
         type="submit"
-        disabled={!name.trim() || stack <= 0 || loading || locked}
+        disabled={!name.trim() || stack <= 0 || loading || locked || overCap || broke}
         className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-amber-700/70 hover:bg-amber-600/75 disabled:opacity-30 text-amber-100 font-medium btn-press transition"
       >
         {loading ? (

@@ -54,7 +54,7 @@ export function OptionsMenu({
       >
         <Menu className="w-5 h-5" />
         {badge ? (
-          <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 rounded-full bg-accent text-black text-[10px] font-black flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 rounded-full bg-zinc-200 text-zinc-950 text-[10px] font-black flex items-center justify-center">
             {badge}
           </span>
         ) : null}

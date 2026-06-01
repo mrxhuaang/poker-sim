@@ -11,6 +11,26 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/normalRooms/$(code)).data.hostUid == request.auth.uid;
     }
 
+    // Cuentas de usuario: perfil, wallet, progresion, stats.
+    match /users/{uid} {
+      // Perfiles publicos (apodo / avatar / rango visibles para otros jugadores).
+      allow read: if isSignedIn();
+      // Grant inicial fijo de 10000 monedas en la creacion.
+      allow create: if isSignedIn()
+                    && request.auth.uid == uid
+                    && request.resource.data.uid == uid
+                    && request.resource.data.coins == 10000;
+      // Solo el dueno escribe; el saldo nunca puede quedar negativo.
+      allow update: if isSignedIn()
+                    && request.auth.uid == uid
+                    && request.resource.data.coins >= 0;
+
+      match /history/{id} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn() && request.auth.uid == uid;
+      }
+    }
+
     // Legacy presencial rooms
     match /rooms/{code} {
       allow read: if isSignedIn();

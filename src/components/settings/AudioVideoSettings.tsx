@@ -57,7 +57,7 @@ export function AudioVideoSettings({ showMic = false }: { showMic?: boolean }) {
             className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition btn-press ring-1 ${
               muted
                 ? "bg-white/[0.04] text-zinc-500 ring-white/10"
-                : "bg-accent/15 text-accent ring-accent/30"
+                : "bg-white/[0.10] text-zinc-100 ring-white/20"
             }`}
           >
             {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
@@ -77,7 +77,7 @@ export function AudioVideoSettings({ showMic = false }: { showMic?: boolean }) {
             value={Math.round(volume * 100)}
             onChange={(e) => setVolume(Number(e.target.value) / 100)}
             disabled={muted}
-            className="w-full accent-accent disabled:opacity-40"
+            className="w-full accent-zinc-200 disabled:opacity-40"
           />
         </label>
       </section>
@@ -123,7 +123,7 @@ export function AudioVideoSettings({ showMic = false }: { showMic?: boolean }) {
             </button>
             <div className="flex-1 h-2.5 rounded-full bg-white/[0.06] overflow-hidden ring-1 ring-white/10">
               <div
-                className="h-full bg-accent transition-[width] duration-75"
+                className="h-full bg-zinc-200 transition-[width] duration-75"
                 style={{ width: `${Math.min(100, Math.round(level * 140))}%` }}
               />
             </div>

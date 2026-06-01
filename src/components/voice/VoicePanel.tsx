@@ -122,7 +122,7 @@ export default function VoicePanel({
         <button
           type="button"
           onClick={() => { setListenOnly(false); setEnabled(true); }}
-          className="p-3 rounded-2xl glass ring-1 ring-amber-400/20 text-amber-300 hover:bg-amber-500/12 hover:text-amber-200 transition btn-press shadow-xl"
+          className="p-3 rounded-2xl glass ring-1 ring-white/10 text-zinc-300 hover:bg-white/10 hover:text-zinc-100 transition btn-press shadow-xl"
           title="Unirme con micrófono"
           aria-label="Unirme con micrófono"
         >
@@ -162,7 +162,7 @@ export default function VoicePanel({
     >
       <header className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-zinc-400">
-          <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+          <span className="w-2 h-2 rounded-full bg-zinc-300 animate-pulse" />
           Voz · {Object.keys(participants).length} en sala
           {listenOnly && (
             <span className="flex items-center gap-0.5 text-zinc-500">
@@ -248,7 +248,7 @@ function ParticipantRow({
   const level = useAudioLevel(stream);
   const talking = !participant.isMuted && level > 0.12;
   const ringClass = talking
-    ? "ring-amber-400/80 shadow-[0_0_12px_-2px_rgba(180,130,40,0.5)]"
+    ? "ring-zinc-200/80 shadow-[0_0_12px_-2px_rgba(244,244,245,0.35)]"
     : "ring-white/10";
   const connLabel = !isLocal ? describeConnState(connectionState) : null;
 

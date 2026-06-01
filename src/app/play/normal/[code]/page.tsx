@@ -38,6 +38,9 @@ import {
   type StackRequest,
 } from "@/lib/stackRequests";
 import { getMyPublicKeyString } from "@/lib/holeCrypto";
+import { buyIn, cashOut, recordSession, refundBuyIn } from "@/lib/users";
+import { sessionXp } from "@/lib/progression";
+import { availableCoins } from "@/lib/economy";
 import { formatChips } from "@/lib/betting";
 import type {
   BettingAction,
@@ -71,9 +74,17 @@ export default function PlayNormalPage() {
   const params = useParams<{ code: string }>();
   const router = useRouter();
   const code = params.code?.toUpperCase() ?? null;
-  const { uid, loading } = useAuth();
+  const { uid, loading, profile } = useAuth();
   const [mySeed] = useState(() => Math.random().toString(36).slice(2));
   const mySeedRef = useRef(mySeed);
+
+  // Contadores de sesion para XP / historial + total comprado para el neto.
+  const handsPlayedRef = useRef(0);
+  const handsWonRef = useRef(0);
+  const biggestPotRef = useRef(0);
+  const boughtInRef = useRef(0);
+  const countedHandRef = useRef(-1);
+  const settledRef = useRef(false);
 
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [myRequest, setMyRequest] = useState<StackRequest | null | undefined>(
@@ -143,6 +154,19 @@ export default function PlayNormalPage() {
     return () => { cancelled = true; };
   }, [code, uid, inLobby, myPubKey]);
 
+  // Cuenta manos jugadas/ganadas y el bote mayor para XP + historial.
+  // El guard por handNum evita contar dos veces el mismo showdown.
+  useEffect(() => {
+    if (!result || !gs || !uid || !inLobby) return;
+    const hn = gs.betting.handNum;
+    if (countedHandRef.current === hn) return;
+    countedHandRef.current = hn;
+    handsPlayedRef.current += 1;
+    if (result.winners.includes(uid)) handsWonRef.current += 1;
+    const pot = gs.betting.pot ?? 0;
+    if (pot > biggestPotRef.current) biggestPotRef.current = pot;
+  }, [result, gs, uid, inLobby]);
+
   const placeholderSeats: NormalSeat[] = useMemo(() => {
     if (gs) return gs.seats as NormalSeat[];
     if (!config) return [];
@@ -166,26 +190,55 @@ export default function PlayNormalPage() {
   async function handleJoinRequest(name: string, stack: number, seed: string) {
     if (!uid || !code) return;
     mySeedRef.current = seed; // persist the picked avatar seed
-    await submitStackRequest(code, {
-      uid,
-      name,
-      seed,
-      requestedStack: stack,
-      type: "join",
-      ts: Date.now(),
-    });
+    // Descontar monedas del wallet (escrow) ANTES de pedir el asiento.
+    try {
+      await buyIn(uid, code, stack);
+      boughtInRef.current += stack;
+      settledRef.current = false;
+    } catch {
+      alert("No tienes monedas suficientes para esa entrada.");
+      return;
+    }
+    try {
+      await submitStackRequest(code, {
+        uid,
+        name,
+        seed,
+        requestedStack: stack,
+        type: "join",
+        ts: Date.now(),
+      });
+    } catch (err) {
+      // Revertir el escrow si no se pudo crear la solicitud.
+      await refundBuyIn(uid, code, stack).catch(() => {});
+      boughtInRef.current -= stack;
+      throw err;
+    }
   }
 
   async function handleRebuyRequest(stack: number) {
     if (!uid || !code || !myLobbyEntry) return;
-    await submitStackRequest(code, {
-      uid,
-      name: myLobbyEntry.name,
-      seed: myLobbyEntry.seed,
-      requestedStack: stack,
-      type: "rebuy",
-      ts: Date.now(),
-    });
+    try {
+      await buyIn(uid, code, stack);
+      boughtInRef.current += stack;
+    } catch {
+      alert("No tienes monedas suficientes para ese rebuy.");
+      return;
+    }
+    try {
+      await submitStackRequest(code, {
+        uid,
+        name: myLobbyEntry.name,
+        seed: myLobbyEntry.seed,
+        requestedStack: stack,
+        type: "rebuy",
+        ts: Date.now(),
+      });
+    } catch (err) {
+      await cashOut(uid, code, stack).catch(() => {});
+      boughtInRef.current -= stack;
+      throw err;
+    }
   }
 
   async function handleAction(action: BettingAction, amount?: number) {
@@ -223,6 +276,28 @@ export default function PlayNormalPage() {
     setMyRequest(null);
   }
 
+  // Liquida la sesion: devuelve las fichas finales al wallet (cash-out) y
+  // registra XP + historial. lobby.chips es la verdad del host (no falsificable).
+  async function settleSession() {
+    if (!uid || !code || settledRef.current) return;
+    settledRef.current = true;
+    const finalChips = mySeat?.chips ?? myLobbyEntry?.chips ?? 0;
+    await cashOut(uid, code, finalChips).catch(() => {});
+    const handsPlayed = handsPlayedRef.current;
+    if (handsPlayed > 0 || boughtInRef.current > 0) {
+      const xpGained = sessionXp(handsPlayed, handsWonRef.current);
+      await recordSession(uid, {
+        code,
+        roomName: room?.roomName ?? `Sala ${code}`,
+        handsPlayed,
+        handsWon: handsWonRef.current,
+        net: finalChips - boughtInRef.current,
+        biggestPot: biggestPotRef.current,
+        xpGained,
+      }).catch(() => {});
+    }
+  }
+
   async function handleLeave() {
     if (!uid || !code) return;
     if (spectating) {
@@ -232,6 +307,7 @@ export default function PlayNormalPage() {
       return;
     }
     if (!confirm("¿Salir de la sala? Perderás tu lugar en esta mano.")) return;
+    await settleSession();
     try {
       await kickFromLobby(code, uid);
     } catch { /* ignore */ }
@@ -357,6 +433,7 @@ export default function PlayNormalPage() {
               locked={locked}
               showAvatar
               roomCode={code ?? undefined}
+              maxStack={profile ? availableCoins(profile) : undefined}
               onSubmit={handleJoinRequest}
             />
           </div>
@@ -411,6 +488,7 @@ export default function PlayNormalPage() {
             defaultName={myLobbyEntry?.name ?? ""}
             suggestedStack={config?.startingStack ?? 1000}
             mode="rebuy"
+            maxStack={profile ? availableCoins(profile) : undefined}
             onSubmit={async (_, stack) => handleRebuyRequest(stack) as unknown as Promise<void>}
           />
         )}

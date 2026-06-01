@@ -559,16 +559,16 @@ function WinnerBanner({
 }) {
   const tie = names.length > 1;
   return (
-    <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-violet-300/10 ring-1 ring-violet-300/40 text-violet-100 shadow-[0_20px_60px_-20px_rgba(124,58,237,0.4)]">
-      <Trophy className="w-5 h-5 text-violet-300" />
+    <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-accent/12 ring-1 ring-accent/35 text-accent shadow-[0_20px_60px_-20px_var(--shadow-warm)]">
+      <Trophy className="w-5 h-5 text-accent" />
       <div className="flex flex-col">
         <span className="text-sm">
           {tie ? "Empate: " : "Gana "}
-          <span className="font-semibold text-violet-50">
+          <span className="font-semibold text-zinc-50">
             {names.join(" · ")}
           </span>
         </span>
-        <span className="text-[11px] text-violet-200/80">{category}</span>
+        <span className="text-[11px] text-accent/80">{category}</span>
       </div>
     </div>
   );
@@ -614,7 +614,7 @@ function HostLobby({
           disabled={players.length < 2 || players.length > 9}
           onClick={() => onDeal(players)}
           title={players.length < 2 ? "Se necesitan al menos 2 jugadores" : undefined}
-          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-violet-700/70 hover:bg-violet-600/75 disabled:opacity-30 disabled:cursor-not-allowed text-violet-100 font-medium text-sm transition"
+          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-accent/85 hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed text-accent-contrast font-medium text-sm transition"
         >
           Repartir ({players.length})
         </button>

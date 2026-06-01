@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Nav } from "@/components/Nav";
@@ -24,7 +24,10 @@ export const metadata: Metadata = {
     apple: "/favicon.svg",
   },
   manifest: "/manifest.json",
-  themeColor: "#06070a",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0d0b09",
 };
 
 export default function RootLayout({
@@ -37,7 +40,7 @@ export default function RootLayout({
       lang="es"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#06070a] text-zinc-100">
+      <body className="min-h-full flex flex-col bg-background text-foreground">
         <GlobalBackground />
         <Nav />
         <main className="relative z-[2] flex-1 flex flex-col">{children}</main>

@@ -59,14 +59,14 @@ export function SettingsOverlay({
                 onClick={() => setActive(t.id)}
                 className={`relative inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] sm:text-xs font-bold uppercase tracking-wider transition btn-press shrink-0 ring-1 ${
                   on
-                    ? "bg-accent/15 text-accent ring-accent/30"
+                    ? "bg-white/[0.10] text-zinc-100 ring-white/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                     : "text-zinc-500 ring-transparent hover:text-zinc-300 hover:bg-white/5"
                 }`}
               >
                 {t.icon}
                 <span>{t.label}</span>
                 {t.badge ? (
-                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-accent text-black text-[9px] font-black flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-zinc-200 text-zinc-950 text-[9px] font-black flex items-center justify-center">
                     {t.badge}
                   </span>
                 ) : null}

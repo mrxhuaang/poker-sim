@@ -23,6 +23,26 @@
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
   --color-accent-contrast: var(--accent-contrast);
+
+  /* ── Brand accent scale ─────────────────────────────────────────────
+     SINGLE SOURCE OF TRUTH for the brand accent in Tailwind classes.
+     Use accent-* utilities everywhere instead of amber-* / emerald-*:
+       text-accent-300, bg-accent-500/10, ring-accent-400/40, etc.
+     To re-skin the whole app, change only the hue (290 = violet) here.
+     JS/canvas/inline-style usages mirror this in src/lib/brand.ts —
+     keep the two in sync. */
+  --color-accent-50:  oklch(0.97 0.014 290);
+  --color-accent-100: oklch(0.94 0.03 290);
+  --color-accent-200: oklch(0.89 0.06 290);
+  --color-accent-300: oklch(0.81 0.10 290);
+  --color-accent-400: oklch(0.72 0.16 290);
+  --color-accent-500: oklch(0.64 0.20 290);
+  --color-accent-600: oklch(0.56 0.22 290);
+  --color-accent-700: oklch(0.49 0.20 290);
+  --color-accent-800: oklch(0.42 0.16 290);
+  --color-accent-900: oklch(0.36 0.11 290);
+  --color-accent-950: oklch(0.26 0.09 290);
+
   --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
 }
@@ -125,11 +145,11 @@ body {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: oklch(0.78 0.095 80 / 0.22);
+  background: oklch(0.72 0.16 290 / 0.22);
   border-radius: 4px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.78 0.095 80 / 0.42);
+  background: oklch(0.72 0.16 290 / 0.42);
 }
 
 .elevate {

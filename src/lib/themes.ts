@@ -135,10 +135,10 @@ export const CARD_BACKS: Record<CardBackId, CardBack> = {
     id: "logo",
     label: "Noir",
     background:
-      "linear-gradient(135deg,#1c1c20 0%,#0e0e11 60%,#050506 100%)",
+      "linear-gradient(135deg,#2e1a52 0%,#1a0f35 55%,#09061a 100%)",
     pattern:
-      "radial-gradient(circle at center, rgba(255,255,255,0.18) 0%, transparent 60%)",
-    centerColor: "#ededf2",
+      "repeating-linear-gradient(45deg, rgba(167,139,250,0.09) 0 1px, transparent 1px 9px), repeating-linear-gradient(-45deg, rgba(167,139,250,0.07) 0 1px, transparent 1px 9px)",
+    centerColor: "rgba(167,139,250,0.55)",
   },
 };
 

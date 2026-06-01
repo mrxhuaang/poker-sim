@@ -30,13 +30,13 @@ export function PlayerSeat({
       style={style}
     >
       {isWinner ? (
-        <span className="absolute -top-7 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-300 text-violet-950 text-[11px] font-medium shadow-[0_8px_24px_-6px_rgba(124,58,237,0.55)]">
+        <span className="absolute -top-7 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent text-accent-contrast text-[11px] font-medium shadow-[0_8px_24px_-6px_var(--shadow-warm)]">
           <Crown className="w-3 h-3" />
           Ganador
         </span>
       ) : null}
       <div
-        className={`relative ${seat.folded ? "opacity-40 grayscale" : ""} ${isWinner ? "drop-shadow-[0_10px_30px_rgba(124,58,237,0.35)]" : ""}`}
+        className={`relative ${seat.folded ? "opacity-40 grayscale" : ""} ${isWinner ? "drop-shadow-[0_10px_30px_var(--shadow-warm)]" : ""}`}
       >
         <HoleCards seat={seat} onToggle={onToggle} cardBack={cardBack} cardFace={cardFace} />
         {seat.folded ? (
