@@ -107,8 +107,8 @@ function RankEmblem({
         border: `1.5px solid ${reveal || !locked ? glow : "rgba(255,255,255,0.08)"}`,
         color: reveal || !locked ? color : "#52525b",
         fontSize: size * 0.38,
-        filter: reveal ? "none" : locked ? "grayscale(1)" : "none",
-        opacity: reveal ? 1 : locked ? 0.4 : 1,
+        filter: reveal ? "none" : locked ? "grayscale(0.7)" : "none",
+        opacity: reveal ? 1 : locked ? 0.65 : 1,
         boxShadow: hovered && !locked ? `0 0 ${glowSize * 2}px ${glow}` : "none",
       }}
     >
@@ -126,9 +126,9 @@ function RankEmblem({
         filter: reveal
           ? `drop-shadow(0 0 ${glowSize}px ${glow}) brightness(1.15)`
           : locked
-            ? "grayscale(1) brightness(0.35)"
+            ? "grayscale(0.7) brightness(0.55)"
             : `drop-shadow(0 0 ${glowSize}px ${glow})`,
-        opacity: reveal ? 1 : locked ? 0.4 : 1,
+        opacity: reveal ? 1 : locked ? 0.65 : 1,
         transform: hovered ? "scale(1.08)" : "scale(1)",
       }}
     />
@@ -311,7 +311,7 @@ export function RankTowerModal({
                         : status === "achieved"
                           ? `0 0 16px ${meta.glowHex}22, 0 4px 16px rgba(0,0,0,0.4)`
                           : "0 2px 8px rgba(0,0,0,0.3)",
-                    opacity: isLocked && hoveredRank !== t.name ? 0.5 : 1,
+                    opacity: isLocked && hoveredRank !== t.name ? 0.72 : 1,
                     transform: isCurrent ? "scale(1.02)" : hoveredRank === t.name ? "scale(1.01)" : "scale(1)",
                   }}
                 >
