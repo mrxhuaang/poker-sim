@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { BorderGlow } from "@/components/ui/BorderGlow";
 import { Avatar } from "@/components/players/Avatar";
+import { RankTowerModal } from "@/components/profile/RankTowerModal";
 import { useAuth } from "@/hooks/useAuth";
 import {
   claimDailyBonus,
@@ -44,6 +45,7 @@ export default function PerfilPage() {
   const uid = user?.uid ?? null;
   const prog = profile ? levelProgress(profile.xp) : null;
   const rank = prog ? rankForLevel(prog.level) : null;
+  const [showTower, setShowTower] = useState(false);
 
   useEffect(() => {
     if (!uid || isGuest) return;
@@ -308,9 +310,23 @@ export default function PerfilPage() {
                 </div>
               </div>
             </div>
-            <p className="text-[11px] text-zinc-600">
-              Ganas experiencia por jugar manos y completar partidas. Cuanto mas juegas, mas subes.
-            </p>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-[11px] text-zinc-600">
+                Ganas experiencia jugando manos y completando partidas.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowTower(true)}
+                className="shrink-0 ml-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition btn-press"
+                style={{
+                  background: "rgba(167,139,250,0.12)",
+                  border: "1px solid rgba(167,139,250,0.25)",
+                  color: "#c4b5fd",
+                }}
+              >
+                Ver rangos
+              </button>
+            </div>
           </Card>
         )}
 
@@ -405,6 +421,13 @@ export default function PerfilPage() {
           )}
         </Card>
       </div>
+
+      {showTower && prog && (
+        <RankTowerModal
+          currentLevel={prog.level}
+          onClose={() => setShowTower(false)}
+        />
+      )}
     </div>
   );
 }
