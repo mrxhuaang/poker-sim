@@ -65,7 +65,7 @@ export default function HostPage() {
     if (room?.state) {
       for (const s of room.state.seats) out[s.id] = s.ownerUid ?? null;
     } else {
-      for (const p of lobby) out[p.uid] = p.uid;
+      for (const p of lobby) out[p.uid] = p.ownerUid ?? p.uid;
     }
     return out;
   }, [room, lobby]);

@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Crown, Eye, EyeOff, Flame, LogOut, RotateCcw, Shuffle, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,17 +21,36 @@ export default function PlayPage() {
   const { uid, loading } = useAuth();
   const room = useRoom(code);
   const lobby = useLobby(code);
+  const [participantUid, setParticipantUid] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!uid || !code) return;
+    const key = `noir:presencial:${code}:participantUid`;
+    const existing = window.sessionStorage.getItem(key);
+    if (existing) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setParticipantUid(existing);
+      return;
+    }
+    const random =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2);
+    const next = `tab-${uid.slice(0, 8)}-${random}`;
+    window.sessionStorage.setItem(key, next);
+    setParticipantUid(next);
+  }, [code, uid]);
 
   const inLobby = useMemo(
-    () => (uid ? lobby.find((p) => p.uid === uid) : null),
-    [uid, lobby],
+    () => (participantUid ? lobby.find((p) => p.uid === participantUid) : null),
+    [participantUid, lobby],
   );
-  const mySeat = uid && room?.state
-    ? room.state.seats.find((s) => s.id === uid)
+  const mySeat = participantUid && room?.state
+    ? room.state.seats.find((s) => s.id === participantUid)
     : null;
   const hole = useHole(code, mySeat?.id ?? null);
 
-  if (loading || room === undefined) {
+  if (loading || room === undefined || !participantUid) {
     return (
       <div className="w-full max-w-md mx-auto px-4 py-10 text-center text-zinc-500 text-sm">
         Conectando…
@@ -55,7 +74,7 @@ export default function PlayPage() {
 
   if (!mySeat) {
     if (!inLobby) {
-      return <LobbyForm code={code} uid={uid} />;
+      return <LobbyForm code={code} participantUid={participantUid} ownerUid={uid} />;
     }
     return (
       <div className="w-full max-w-md mx-auto px-4 py-10 flex flex-col items-center gap-4 text-center">
@@ -84,17 +103,25 @@ export default function PlayPage() {
   );
 }
 
-function LobbyForm({ code, uid }: { code: string; uid: string | null }) {
+function LobbyForm({
+  code,
+  participantUid,
+  ownerUid,
+}: {
+  code: string;
+  participantUid: string | null;
+  ownerUid: string | null;
+}) {
   const [name, setName] = useState("");
   const [seed, setSeed] = useState(() => randomSeed());
   const [submitting, setSubmitting] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!uid || !name.trim() || submitting) return;
+    if (!participantUid || !name.trim() || submitting) return;
     setSubmitting(true);
     try {
-      await joinLobby(code, uid, name.trim(), seed);
+      await joinLobby(code, participantUid, name.trim(), seed, ownerUid);
     } finally {
       setSubmitting(false);
     }
@@ -215,7 +242,7 @@ function PhoneGameView({
   async function onLeave() {
     if (!uid) return;
     try {
-      await leaveLobby(code, uid);
+      await leaveLobby(code, mySeat.id);
     } catch {
       /* ignore */
     }
