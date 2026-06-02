@@ -153,7 +153,7 @@ export default function PlayNormalPage() {
   const visibleRunResults =
     closedRunResultsHand === currentHandNum ? null : (room?.runResults ?? null);
   const allInVoteOpen =
-    gs?.phase === "all-in-negotiation" ? closedAllInVoteHand !== currentHandNum : true;
+    gs?.phase === "all-in-negotiation" && closedAllInVoteHand !== currentHandNum;
 
   // Mantener el snapshot al dia para el cleanup de desmontaje.
   liveRef.current = {

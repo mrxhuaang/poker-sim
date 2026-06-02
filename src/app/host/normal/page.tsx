@@ -204,7 +204,7 @@ export default function HostNormalPage() {
   const visibleRunResults =
     closedRunResultsHand === betting.handNum ? null : (runs ?? room?.runResults ?? null);
   const allInVoteOpen =
-    gameState?.phase === "all-in-negotiation" ? closedAllInVoteHand !== betting.handNum : true;
+    gameState?.phase === "all-in-negotiation" && closedAllInVoteHand !== betting.handNum;
 
   async function handleAction(action: BettingAction, amount?: number) {
     if (!uid || !code) return;
