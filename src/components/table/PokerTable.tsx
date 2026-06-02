@@ -102,7 +102,7 @@ export function PokerTable({
       });
     });
     return () => unsub();
-  }, [sync]);
+  }, [sync?.roomCode]);
 
   const lastDealIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -619,10 +619,12 @@ function HostLobby({
           Repartir ({players.length})
         </button>
       </div>
-      <p className={`text-[11px] text-center ${players.length < 2 ? "text-rose-400/70" : "text-zinc-500"}`}>
+      <p className={`text-[11px] text-center ${players.length < 2 || players.length > 9 ? "text-rose-400/70" : "text-zinc-500"}`}>
         {players.length < 2
           ? `Faltan ${2 - players.length} jugador${2 - players.length === 1 ? "" : "es"} para repartir.`
-          : "Requiere 2 a 9 jugadores."}
+          : players.length > 9
+            ? "Máximo 9 jugadores."
+            : "Requiere 2 a 9 jugadores."}
       </p>
     </div>
   );
