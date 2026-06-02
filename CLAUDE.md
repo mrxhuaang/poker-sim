@@ -163,3 +163,8 @@ Setup completo: `docs/voice-setup.md`.
 - Don't compare `seat.status` against `'sit-out'` — the correct value in `SeatStatus` is `'sitting-out'`.
 - Don't add `phase` or `allInNegotiation` fields to `RoomState` (in `rooms.ts`) without also updating the `RoomDoc` type and Firestore rules. These fields exist only on `NormalGameState` in `betting.ts`.
 - Don't add `Co-Authored-By: Claude` trailers to commit messages. Write commits as if the owner wrote them.
+- Don't pass an inline object literal (`{ roomCode, ownersMap }`) as a `useEffect` dependency — it creates a new reference on every render and re-fires the effect continuously. Memoize the object at the call site or depend only on the primitive fields (e.g. `sync?.roomCode`).
+- Don't use `el.volume = 0` to mute a remote audio element — the pipeline stays active. Use `el.muted = true` so the browser can suspend decoding and save battery.
+- Don't use `dangerouslySetInnerHTML` for SVG output from third-party libraries (e.g. DiceBear). Render via `<img src={\`data:image/svg+xml,${encodeURIComponent(svg)}\`} alt="" />` instead to eliminate the XSS surface.
+- Don't write CSS values in inline `style` objects with underscores instead of spaces (e.g. `"0 12px_32px"` is invalid — shadows will be silently ignored).
+- Don't default boolean UI flags like `allInVoteOpen` to `true` when the safe/closed state is `false` — an inverted default causes modals to flash open on every page load.
