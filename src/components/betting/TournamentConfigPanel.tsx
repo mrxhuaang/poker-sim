@@ -132,7 +132,7 @@ export function TournamentConfigPanel({ config, onChange }: Props) {
           onChange={(v) => set({ turnTime: v * 1000 })}
         />
         <NumField
-          label="Time bank (s)"
+          label="Banco de tiempo (s)"
           value={Math.round(config.timeBankInit / 1000)}
           min={0}
           max={600}
