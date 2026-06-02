@@ -32,7 +32,8 @@ export type UserProfile = {
   nickname: string;
   photoURL: string | null;
   avatarSeed: string;
-  email: string | null;
+  // El email NO vive en Firestore: se lee del Auth record (user.email), solo
+  // accesible por el dueno. Asi no se expone a otros usuarios.
   createdAt: number;
   // Economia
   coins: number;

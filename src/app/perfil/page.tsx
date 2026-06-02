@@ -246,7 +246,7 @@ export default function PerfilPage() {
                 </div>
               )}
               <p className="text-xs text-muted mt-1">
-                {profile.email ?? "Cuenta de invitado"} · desde {memberSince}
+                {user?.email ?? "Cuenta de invitado"} · desde {memberSince}
               </p>
               {rank && (
                 <span className="inline-flex items-center gap-2 mt-2 text-[10px] uppercase tracking-[0.2em] px-2 py-1 rounded-full ring-1 bg-white/[0.05] text-zinc-300 ring-white/15">

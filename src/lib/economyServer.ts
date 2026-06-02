@@ -9,6 +9,7 @@
 //   - record-session: el XP se RECALCULA server-side con sessionXp(); el cliente
 //     no puede inflarlo. handsPlayed/handsWon se acotan.
 import "server-only";
+import { FieldValue } from "firebase-admin/firestore";
 import { adminAuth, adminDb } from "./firebaseAdmin";
 import {
   STARTING_COINS,
@@ -30,7 +31,8 @@ export type UserProfile = {
   nickname: string;
   photoURL: string | null;
   avatarSeed: string;
-  email: string | null;
+  // El email NO se guarda en Firestore (vive solo en el Auth record, accesible
+  // por el dueno via user.email). Evita exponerlo a otros usuarios.
   createdAt: number;
   coins: number;
   escrows: Record<string, number>;
@@ -77,7 +79,6 @@ export async function ensureProfile(uid: string): Promise<UserProfile> {
       nickname: userRecord.displayName ?? "Jugador",
       photoURL: userRecord.photoURL ?? null,
       avatarSeed: randomSeed(),
-      email: userRecord.email ?? null,
       createdAt: now,
       coins: STARTING_COINS,
       escrows: {},
@@ -94,14 +95,20 @@ export async function ensureProfile(uid: string): Promise<UserProfile> {
     return profile;
   }
 
+  const raw = snap.data() as Record<string, unknown>;
   let profile = snap.data() as UserProfile;
-  const patch: Partial<UserProfile> = {};
+  const patch: Record<string, unknown> = {};
+
+  // Migracion: borrar el email de docs antiguos (antes vivia en el doc
+  // publico, legible por terceros). Ahora el email solo vive en el Auth record.
+  if ("email" in raw) {
+    patch.email = FieldValue.delete();
+  }
 
   // Al enlazar cuenta social sobre la anonima, traer datos del proveedor.
   if (provider !== "anonymous") {
     if (profile.provider === "anonymous") patch.provider = provider;
     if (userRecord.photoURL && !profile.photoURL) patch.photoURL = userRecord.photoURL;
-    if (userRecord.email && !profile.email) patch.email = userRecord.email;
     if (
       userRecord.displayName &&
       (profile.displayName === "Jugador" || !profile.displayName)
@@ -127,8 +134,11 @@ export async function ensureProfile(uid: string): Promise<UserProfile> {
   }
 
   if (Object.keys(patch).length > 0) {
-    await ref.update(patch as Record<string, unknown>);
-    profile = { ...profile, ...patch };
+    await ref.update(patch);
+    // No reflejar el FieldValue.delete() sentinel en el objeto devuelto.
+    const { email: _drop, ...rest } = patch as Record<string, unknown> & { email?: unknown };
+    void _drop;
+    profile = { ...profile, ...rest } as UserProfile;
   }
   return profile;
 }
