@@ -115,7 +115,7 @@ export default function HostPage() {
   if (loading || !code) {
     return (
       <div className="w-full max-w-6xl mx-auto px-4 py-10 text-center text-zinc-500 text-sm">
-        Creando sala…
+        {loading ? "Cargando…" : "Creando sala…"}
       </div>
     );
   }
