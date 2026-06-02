@@ -7,30 +7,53 @@ import { ACCENT_GLOW_COLORS, ACCENT_GLOW_HSL } from "@/lib/brand";
 import { doc, getDoc } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
 
-async function resolvePlayRoute(code: string): Promise<string> {
+async function resolvePlayRoute(code: string): Promise<string | null> {
   const db = getDb();
-  const snap = await getDoc(doc(db, "normalRooms", code));
-  if (snap.exists()) return `/play/normal/${code}`;
-  return `/play/${code}`;
+  const normalSnap = await getDoc(doc(db, "normalRooms", code));
+  if (normalSnap.exists()) return `/play/normal/${code}`;
+  const presencialSnap = await getDoc(doc(db, "rooms", code));
+  if (presencialSnap.exists()) return `/play/${code}`;
+  return null;
 }
 
 function JoinInner() {
   const router = useRouter();
   const sp = useSearchParams();
-  const [code, setCode] = useState("");
+  const codeFromUrl = sp.get("code")?.toUpperCase().replace(/[^A-Z0-9]/g, "") ?? "";
+  const [code, setCode] = useState(codeFromUrl);
+  const [error, setError] = useState("");
+  const [checking, setChecking] = useState(!!codeFromUrl);
 
   useEffect(() => {
-    const fromUrl = sp.get("code");
-    if (!fromUrl) return;
-    const c = fromUrl.toUpperCase();
-    resolvePlayRoute(c).then((route) => router.replace(route)).catch(() => router.replace(`/play/${c}`));
-  }, [sp, router]);
+    if (!codeFromUrl) return;
+    resolvePlayRoute(codeFromUrl)
+      .then((route) => {
+        if (route) {
+          router.replace(route);
+          return;
+        }
+        setError("Sala no encontrada. Revisa el código e inténtalo de nuevo.");
+      })
+      .catch(() => setError("No se pudo verificar la sala. Inténtalo de nuevo."))
+      .finally(() => setChecking(false));
+  }, [codeFromUrl, router]);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const c = code.trim().toUpperCase();
+    setError("");
     if (c.length < 4 || c.length > 6) return;
-    resolvePlayRoute(c).then((route) => router.push(route)).catch(() => router.push(`/play/${c}`));
+    setChecking(true);
+    resolvePlayRoute(c)
+      .then((route) => {
+        if (route) {
+          router.push(route);
+          return;
+        }
+        setError("Sala no encontrada. Revisa el código e inténtalo de nuevo.");
+      })
+      .catch(() => setError("No se pudo verificar la sala. Inténtalo de nuevo."))
+      .finally(() => setChecking(false));
   }
 
   return (
@@ -57,20 +80,30 @@ function JoinInner() {
           <input
             type="text"
             value={code}
-            onChange={(e) =>
-              setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))
-            }
-            placeholder="ABCD2"
+            onChange={(e) => {
+              setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""));
+              setError("");
+            }}
+            placeholder="CÓDIGO"
             maxLength={6}
             autoFocus
-            className="w-full rounded-2xl bg-black/45 px-5 py-4 text-center text-2xl uppercase tracking-[0.4em] text-zinc-100 outline-none ring-1 ring-white/10 focus:ring-accent-500/40"
+            aria-invalid={!!error}
+            aria-describedby={error ? "join-code-error" : undefined}
+            className={`w-full rounded-2xl bg-black/45 px-5 py-4 text-center text-2xl uppercase tracking-[0.4em] text-zinc-100 outline-none ring-1 focus:ring-accent-500/40 ${
+              error ? "ring-rose-400/70" : "ring-white/10"
+            }`}
           />
+          {error ? (
+            <p id="join-code-error" className="text-sm text-rose-300 text-center">
+              {error}
+            </p>
+          ) : null}
           <button
             type="submit"
-            disabled={code.length < 4}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent-700/70 px-5 py-3 font-medium text-accent-100 transition hover:bg-accent-600/75 disabled:cursor-not-allowed disabled:opacity-30"
+            disabled={code.length < 4 || checking}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent-700/70 px-5 py-3 font-medium text-accent-100 transition hover:bg-accent-600/75 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-400 disabled:ring-1 disabled:ring-white/10"
           >
-            Entrar
+            {checking ? "Verificando..." : "Entrar"}
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
