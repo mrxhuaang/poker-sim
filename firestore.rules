@@ -12,36 +12,33 @@ service cloud.firestore {
     }
 
     // Cuentas de usuario: perfil, wallet, progresion, stats.
+    //
+    // AUTORIDAD SERVER-SIDE: coins / escrows / xp / level / stats SOLO los
+    // escribe el backend (Admin SDK en /api/economy, que ignora estas reglas).
+    // El cliente jamas puede crear el perfil ni tocar el wallet/XP: solo puede
+    // EDITAR su apodo y avatar. Esto cierra de raiz la acunacion de monedas y
+    // la forja de XP/stats; las reglas son la red de seguridad que garantiza
+    // que ninguna escritura sensible del cliente pase.
     match /users/{uid} {
-      // Perfiles publicos (apodo / avatar / rango visibles para otros jugadores).
+      // Perfil legible por usuarios autenticados (apodo / avatar / rango / wallet).
+      // Nota: para ocultar el email a terceros, moverlo a una subcoleccion
+      // privada users/{uid}/private (las reglas de lectura son por documento).
       allow read: if isSignedIn();
-      // Grant inicial fijo de 10000 monedas en la creacion.
-      allow create: if isSignedIn()
-                    && request.auth.uid == uid
-                    && request.resource.data.uid == uid
-                    && request.resource.data.coins == 10000;
-      // Solo el dueno escribe; el saldo nunca queda negativo ni se "acuna".
-      // Sin backend, el wallet vive en el cliente. Para impedir el ataque trivial
-      // (poner coins = 9999999) las monedas solo pueden SUBIR si:
-      //   - el mapa de escrows cambia (cash-out / refund de un buy-in), o
-      //   - el incremento es <= 2000 (bono diario o rescate por quiebra).
-      // Bajar o mantener (buy-in, stats/XP, edicion de perfil) siempre se permite.
-      // Limitacion conocida: un host deshonesto aun podria inflar el cash-out via
-      // lobby.chips; cerrar eso requiere settlement server-side (Cloud Functions).
+
+      // El perfil lo crea el servidor (Admin SDK). El cliente no crea.
+      allow create: if false;
+
+      // El cliente solo puede editar campos cosmeticos de su propio perfil.
+      // coins / escrows / xp / level / title / stats quedan fuera de su alcance.
       allow update: if isSignedIn()
                     && request.auth.uid == uid
-                    && request.resource.data.uid == uid
-                    && request.resource.data.coins >= 0
-                    && (
-                      request.resource.data.coins <= resource.data.coins
-                      || request.resource.data.get('escrows', {})
-                           != resource.data.get('escrows', {})
-                      || request.resource.data.coins - resource.data.coins <= 2000
-                    );
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['nickname', 'displayName', 'avatarSeed']);
 
       match /history/{id} {
-        allow read: if isSignedIn();
-        allow write: if isSignedIn() && request.auth.uid == uid;
+        // Historial privado del dueno. Lo escribe el servidor (Admin SDK).
+        allow read: if isSignedIn() && request.auth.uid == uid;
+        allow write: if false;
       }
     }
 
