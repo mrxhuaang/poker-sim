@@ -651,8 +651,9 @@ export function RoundPokerTable({
       {/* Mute toggle */}
       <button
         onClick={toggleMute}
-        className="absolute top-1 right-9 p-1.5 rounded-lg glass hover:bg-white/10 transition text-zinc-500 hover:text-white z-50"
+        className="absolute top-1 right-9 p-2.5 rounded-lg glass hover:bg-white/10 transition text-zinc-500 hover:text-white z-50"
         title={muted ? "Activar sonido" : "Silenciar"}
+        aria-label={muted ? "Activar sonido" : "Silenciar"}
       >
         {muted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
       </button>
@@ -661,8 +662,9 @@ export function RoundPokerTable({
       {roomCode && (
         <button
           onClick={() => setShowQR(true)}
-          className="absolute top-1 right-1 p-1.5 rounded-lg glass hover:bg-white/10 transition text-zinc-500 hover:text-white z-50"
+          className="absolute top-1 right-1 p-2.5 rounded-lg glass hover:bg-white/10 transition text-zinc-500 hover:text-white z-50"
           title="Invitar"
+          aria-label="Invitar jugadores"
         >
           <Maximize2 className="w-3.5 h-3.5" />
         </button>
@@ -672,8 +674,9 @@ export function RoundPokerTable({
       {selfUid && seats.length > 0 && (
         <button
           onClick={rotateSelfToCenter}
-          className="absolute top-1 left-1 p-1.5 rounded-lg glass hover:bg-white/10 transition text-zinc-500 hover:text-white z-50"
+          className="absolute top-1 left-1 p-2.5 rounded-lg glass hover:bg-white/10 transition text-zinc-500 hover:text-white z-50"
           title="Centrarme"
+          aria-label="Centrarme en la mesa"
         >
           <RotateCcw className="w-3.5 h-3.5" />
         </button>
