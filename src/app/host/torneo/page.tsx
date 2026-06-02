@@ -264,7 +264,7 @@ export default function HostTorneoPage() {
               type="button"
               disabled={!canDeal || isProcessing}
               onClick={handleStartTournament}
-              className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-zinc-100 hover:bg-white disabled:opacity-30 text-zinc-900 font-black text-sm uppercase tracking-widest transition shadow-2xl shadow-black/40 btn-press animate-in zoom-in fade-in duration-500"
+              className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-zinc-100 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-400 disabled:ring-1 disabled:ring-white/10 disabled:cursor-not-allowed text-zinc-900 font-black text-sm uppercase tracking-widest transition shadow-2xl shadow-black/40 btn-press animate-in zoom-in fade-in duration-500"
             >
               <Play className="w-5 h-5 fill-current" /> Iniciar torneo
             </button>

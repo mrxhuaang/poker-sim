@@ -79,7 +79,7 @@ export function PlayerPicker({
           type="button"
           disabled={!valid}
           onClick={() => onDeal(chosen)}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-accent/85 hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed text-accent-contrast font-medium text-sm transition"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-accent/85 hover:bg-accent disabled:bg-zinc-800 disabled:text-zinc-400 disabled:ring-1 disabled:ring-white/10 disabled:cursor-not-allowed text-accent-contrast font-medium text-sm transition"
         >
           Repartir
         </button>
