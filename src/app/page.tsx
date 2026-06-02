@@ -28,24 +28,14 @@ export default function Home() {
       ease: "power3.out",
       clearProps: "all",
     });
-    // Mode cards: staggered entrance (40ms apart per skill recommendation)
-    gsap.from(".mode-card", {
-      opacity: 0,
-      y: 28,
-      duration: 0.5,
-      ease: "power3.out",
-      stagger: 0.08,
-      delay: 0.15,
-      clearProps: "all",
-    });
-    // Quick links: fade in after cards
+    // Quick links: fade in
     gsap.from(".quick-link", {
       opacity: 0,
       y: 16,
       duration: 0.4,
       ease: "power3.out",
       stagger: 0.06,
-      delay: 0.38,
+      delay: 0.15,
       clearProps: "all",
     });
   }, { scope, dependencies: [] });
