@@ -30,11 +30,11 @@ avoid a second source of truth. Both tables dropped (migrations
 route now reuses it) — a genuine cleanup, not redundant. The Supabase project (`poker-sim`,
 ref `fpbmrxfcrphrjwwegqsn`) stays — it backs the voice channel; env now wired.
 
-## Optional hardening (small, not a migration)
+## Write integrity — already covered
 
-`writeHandRecord` is a **client** `addDoc` to `normalRooms/{code}/hands`, so it leans on
-Firestore rules. If spoofed hand rows ever matter, add a host-only write rule for that
-subcollection (`firestore.rules`) — far smaller than moving to another datastore.
+`writeHandRecord` is a **client** `addDoc` to `normalRooms/{code}/hands`, but
+`firestore.rules` already gates it: `match /hands/{hId} { allow create, update, delete:
+if isHost(code); }`. Only the room host can write hand rows. No hardening needed.
 
 ## If hand history is ever moved to Postgres (analytics/HUD, roadmap phase)
 
