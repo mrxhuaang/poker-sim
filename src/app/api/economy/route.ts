@@ -5,7 +5,7 @@
 // Corre en runtime Node (el Admin SDK no funciona en Edge). En Vercel Hobby es
 // una serverless function gratuita.
 import { NextResponse } from "next/server";
-import { adminAuth } from "@/lib/firebaseAdmin";
+import { verifyBearerUid } from "@/lib/firebaseAdmin";
 import {
   buyIn,
   cashOut,
@@ -19,20 +19,8 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function uidFromRequest(req: Request): Promise<string | null> {
-  const header = req.headers.get("authorization") ?? "";
-  const token = header.startsWith("Bearer ") ? header.slice(7) : "";
-  if (!token) return null;
-  try {
-    const decoded = await adminAuth().verifyIdToken(token);
-    return decoded.uid;
-  } catch {
-    return null;
-  }
-}
-
 export async function POST(req: Request) {
-  const uid = await uidFromRequest(req);
+  const uid = await verifyBearerUid(req);
   if (!uid) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   }

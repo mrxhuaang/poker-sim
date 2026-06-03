@@ -42,6 +42,20 @@ export function adminAuth(): Auth {
   return getAuth(adminApp());
 }
 
+// Verifica el header Authorization: Bearer <idToken> y devuelve el uid, o null.
+// Punto unico de autenticacion para las API Routes server-authoritative.
+export async function verifyBearerUid(req: Request): Promise<string | null> {
+  const header = req.headers.get("authorization") ?? "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : "";
+  if (!token) return null;
+  try {
+    const decoded = await adminAuth().verifyIdToken(token);
+    return decoded.uid;
+  } catch {
+    return null;
+  }
+}
+
 export function adminDb(): Firestore {
   return getFirestore(adminApp());
 }

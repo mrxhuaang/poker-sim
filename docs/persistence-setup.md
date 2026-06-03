@@ -10,12 +10,26 @@ is data-only.
 - URL: `https://fpbmrxfcrphrjwwegqsn.supabase.co`
 - Same Supabase project also backs the voice signaling (Realtime Broadcast/Presence).
 
-## Schema (migration `f2_durable_stats_and_hand_history`)
+## Scope correction (important)
+
+Investigation found **per-player stats are ALREADY durable + server-authoritative
+in Firestore** (`users/{uid}`: `gamesPlayed/handsPlayed/handsWon/biggestPot/xp/level`,
+written by `recordSession` in `economyServer.ts`, with a per-session `users/{uid}/history`
+subcollection capped at 100). A Supabase `player_stats` table would duplicate that and
+create a second source of truth, so it was **dropped** (migration
+`drop_redundant_player_stats`). Stats need no migration.
+
+The `useStats` / `useHistory` localStorage hooks are **presencial-mode only** (the
+shared-screen `/host` sim with local, account-less players) — a local sandbox by design.
+The online/normal game (real rooms + authenticated host) records **no per-hand detail at
+all** today. So the genuinely valuable, net-new piece is per-hand history for the **online
+mode**, which `hand_history` provides (and which enables a future replayer + live feed).
+
+## Schema (migration `f2_durable_stats_and_hand_history`, minus the dropped table)
 
 | Table | Keyed by | Purpose |
 |-------|----------|---------|
-| `player_stats` | `uid` (Firebase) | Per-player lifetime stats for `/perfil`: hands played/won, showdowns won, biggest pot, net profit. Accumulates across rooms. |
-| `hand_history` | `id` (uuid), indexed `(room_code, created_at desc)` | Per-room hand timeline. All seats read it. In the `supabase_realtime` publication so phones get new hands live. |
+| `hand_history` | `id` (uuid), indexed `(room_code, created_at desc)` | Per-room hand timeline for ONLINE rooms. All seats read it. In the `supabase_realtime` publication so phones get new hands live. |
 
 ## Security model
 
@@ -37,9 +51,17 @@ Supabase Dashboard → Project Settings → API → `service_role`. Add all thre
 ## Status / next steps
 
 - [x] Project created, schema + RLS + Realtime applied live, advisor clean.
-- [ ] Paste env vars (`.env.local` + Vercel). Service-role key is a manual copy.
-- [ ] Server write path: route handler `recordHand` + extend stats recording.
-- [ ] Client reads: `usePlayerStats(uid)` for `/perfil`; `useRoomHistory(code)` with
-      Realtime subscription.
-- [ ] Dual-read migration: prefer Supabase, fall back to `localStorage`; drop the local
-      path only after parity is confirmed.
+- [x] Redundant `player_stats` dropped (stats already durable in Firestore).
+- [x] Env vars in `.env.local` (URL + anon + service-role) and Vercel (manual).
+- [x] Server write path: `src/lib/supabaseAdmin.ts` (service-role client) +
+      `src/lib/handHistoryServer.ts` `recordHand` (host-only authz vs
+      `normalRooms/{code}.hostUid`) + `POST /api/history`. Shared auth helper
+      `verifyBearerUid` extracted into `firebaseAdmin.ts` (economy route now uses it too).
+- [x] Client read: `src/hooks/useRoomHistory(code)` — Supabase select + Realtime INSERT
+      subscription, snake→camel mapped.
+- [x] DB model smoke-tested (insert/select/delete a sample hand at the SQL level).
+- [ ] **Call site (delicate, next):** host POSTs `/api/history` after each online hand
+      resolves, from the normal-game flow (`useNormalGame` / host page). Left for a
+      reviewed step since it touches the protected game loop and needs the live
+      multiplayer flow to verify (host plays a hand → row appears → phone sees it live).
+- [ ] UI: a hand replayer / live history panel consuming `useRoomHistory` (feature phase).
