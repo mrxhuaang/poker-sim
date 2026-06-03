@@ -15,9 +15,11 @@ import {
   Download,
   Trophy,
   PlayCircle,
+  BarChart3,
 } from "lucide-react";
 import type { HandRecord } from "@/lib/handHistory";
 import { HandReplayModal } from "@/components/history/HandReplayModal";
+import { HudPanel } from "@/components/history/HudPanel";
 import { formatChips } from "@/lib/betting";
 import { CATEGORY_LABEL } from "@/lib/handEval";
 import { StackRequestPanel } from "@/components/lobby/StackRequestPanel";
@@ -80,6 +82,9 @@ export function HostSettings(props: Props) {
   const [copied, setCopied] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [replayHand, setReplayHand] = useState<HandRecord | null>(null);
+  const nameById: Record<string, string> = {};
+  for (const p of props.lobby) nameById[p.uid] = p.name;
+  for (const s of props.gameSeats ?? []) nameById[s.id] = s.name;
   const pendingCount = props.requests.filter((r) => r.status === "pending").length;
   const canShare = typeof navigator !== "undefined" && "share" in navigator;
 
@@ -227,6 +232,12 @@ export function HostSettings(props: Props) {
           ))}
         </div>
       ),
+    },
+    {
+      id: "stats",
+      label: "Stats",
+      icon: <BarChart3 className="w-3.5 h-3.5" />,
+      content: <HudPanel hands={history ?? []} nameById={nameById} />,
     },
     {
       id: "config",

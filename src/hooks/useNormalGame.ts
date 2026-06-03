@@ -308,12 +308,17 @@ export function useNormalGame(
         amount: Math.max(0, after - before),
       };
     });
+    const participated = gameState.seats.filter((s) =>
+      s.status === "active" || s.status === "all-in" || s.status === "folded",
+    );
     writeHandRecord(code, {
       handNum: gameState.betting.handNum,
       winners: winnerInfo,
       category: result.category,
       pot: gameState.betting.pot,
       community: gameState.community.map((c) => c.id),
+      dealtIds: participated.map((s) => s.id),
+      showdownIds: Object.keys(revealedHoles),
     }).catch(() => {});
   }, [gameState, code, holeCards]);
 
@@ -697,12 +702,18 @@ export function useNormalGame(
           // the Firestore snapshot with room?.result hasn't arrived yet.
           runItNResolvedHandRef.current = thisHand;
 
+          const runParticipated = gameState.seats.filter((s) =>
+            s.status === "active" || s.status === "all-in" || s.status === "folded",
+          );
+          const runUnfolded = runParticipated.filter((s) => s.status !== "folded").map((s) => s.id);
           writeHandRecord(code, {
             handNum: gameState.betting.handNum,
             winners: winnerInfo,
             category: resolution.category,
             pot: gameState.betting.pot,
             community: resolution.runs.map((run) => run.community.map((c) => c.id).join(" ")),
+            dealtIds: runParticipated.map((s) => s.id),
+            showdownIds: runUnfolded.length > 1 ? runUnfolded : [],
           }).catch(() => {});
         } catch {
           allInRanHandRef.current = -1;

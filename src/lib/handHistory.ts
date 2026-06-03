@@ -21,6 +21,11 @@ export type HandRecord = {
   ts: number;
   runIndex?: number;
   runTotal?: number;
+  // Ids dealt into the hand (participated) and ids that reached a contested
+  // showdown. Optional: rows written before HUD support omit them. Used by
+  // aggregateHud (lib/handStats.ts). Stored as seat ids (= player uid).
+  dealtIds?: string[];
+  showdownIds?: string[];
 };
 
 export async function writeHandRecord(
@@ -42,7 +47,7 @@ export function subscribeHandHistory(
   const q = query(
     collection(db, "normalRooms", code, "hands"),
     orderBy("ts", "desc"),
-    limit(30),
+    limit(200),
   );
   return onSnapshot(
     q,
@@ -65,6 +70,8 @@ export function subscribeHandHistory(
           pot: Number(data.pot ?? 0),
           community: (data.community as string[]) ?? [],
           ts,
+          dealtIds: (data.dealtIds as string[]) ?? [],
+          showdownIds: (data.showdownIds as string[]) ?? [],
         });
       });
       cb(out);
