@@ -28,19 +28,19 @@ export function RunResults({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
+      className="fixed right-3 top-3 z-50 flex justify-end pointer-events-none"
       role="dialog"
       aria-modal="true"
     >
       <div
-        className="custom-scrollbar w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl bg-zinc-950/95 ring-1 ring-white/10 p-6 flex flex-col gap-5"
+        className="custom-scrollbar pointer-events-auto w-[min(420px,calc(100vw-1.5rem))] max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-2xl bg-zinc-950/95 ring-1 ring-white/10 p-4 flex flex-col gap-4 shadow-2xl"
       >
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Crown className="w-5 h-5 text-accent-300" />
-            <h2 className="text-lg tracking-tight text-zinc-100">
-              Resultados de {runs.length} run{runs.length === 1 ? "" : "s"}
-            </h2>
+              <h2 className="text-sm font-black tracking-tight text-zinc-100">
+                Resultados de {runs.length} run{runs.length === 1 ? "" : "s"}
+              </h2>
           </div>
           <button
             type="button"
@@ -86,13 +86,18 @@ export function RunResults({
             return (
               <li
                 key={i}
-                className="animate-in fade-in slide-in-from-bottom-2 duration-300 flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-2xl bg-white/[0.03] ring-1 ring-white/10"
+                className="animate-in fade-in slide-in-from-bottom-2 duration-300 flex flex-col gap-2 p-3 rounded-xl bg-white/[0.03] ring-1 ring-white/10"
                 style={{ animationDelay: `${i * 70}ms`, animationFillMode: "both" }}
               >
-                <span className="text-xs text-zinc-500 w-12 shrink-0 tabular-nums">
-                  Run {i + 1}
-                </span>
-                <div className="flex gap-1.5 items-center">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-zinc-500 shrink-0 tabular-nums">
+                    Run {i + 1}
+                  </span>
+                  <span className="text-[11px] text-zinc-400 truncate">
+                    {CATEGORY_LABEL[r.category as Category]}
+                  </span>
+                </div>
+                <div className="flex gap-1.5 items-center overflow-x-auto pb-1">
                   {r.community.map((c, j) => (
                     <PlayingCard key={j} card={c} faceUp dealIn={false} size="sm" />
                   ))}
@@ -101,9 +106,6 @@ export function RunResults({
                   <span className="text-sm text-accent-100">
                     {winners.length > 1 ? "Empate: " : "Gana "}
                     <span className="font-medium">{winners.join(" · ")}</span>
-                  </span>
-                  <span className="text-[11px] text-zinc-400">
-                    {CATEGORY_LABEL[r.category as Category]}
                   </span>
                 </div>
               </li>
