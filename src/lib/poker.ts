@@ -46,6 +46,16 @@ export function makeDeck(): Card[] {
   return deck;
 }
 
+// Parse a card id like "AS" / "TD" back into a Card. Returns null if malformed.
+// Used to rebuild stored community cards (string ids) for the hand replayer.
+export function cardFromId(id: string): Card | null {
+  if (typeof id !== "string" || id.length < 2) return null;
+  const suit = id.slice(-1) as Suit;
+  const rank = id.slice(0, -1) as Rank;
+  if (!SUITS.includes(suit) || !RANKS.includes(rank)) return null;
+  return { rank, suit, id };
+}
+
 export function shuffle<T>(arr: T[]): T[] {
   const out = arr.slice();
   const rand = new Uint32Array(1);

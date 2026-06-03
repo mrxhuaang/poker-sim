@@ -14,8 +14,10 @@ import {
   Share2,
   Download,
   Trophy,
+  PlayCircle,
 } from "lucide-react";
 import type { HandRecord } from "@/lib/handHistory";
+import { HandReplayModal } from "@/components/history/HandReplayModal";
 import { formatChips } from "@/lib/betting";
 import { CATEGORY_LABEL } from "@/lib/handEval";
 import { StackRequestPanel } from "@/components/lobby/StackRequestPanel";
@@ -77,6 +79,7 @@ export function HostSettings(props: Props) {
   const { code, joinUrl, onClose, config, history } = props;
   const [copied, setCopied] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [replayHand, setReplayHand] = useState<HandRecord | null>(null);
   const pendingCount = props.requests.filter((r) => r.status === "pending").length;
   const canShare = typeof navigator !== "undefined" && "share" in navigator;
 
@@ -194,16 +197,21 @@ export function HostSettings(props: Props) {
             </div>
           )}
           {history?.map((h) => (
-            <div
+            <button
+              type="button"
               key={h.id}
-              className="p-3 rounded-2xl bg-white/[0.03] ring-1 ring-white/[0.08] flex flex-col gap-1.5"
+              onClick={() => setReplayHand(h)}
+              className="text-left p-3 rounded-2xl bg-white/[0.03] ring-1 ring-white/[0.08] flex flex-col gap-1.5 hover:bg-white/[0.06] hover:ring-accent-400/30 transition"
             >
               <div className="flex items-center justify-between">
                 <span className="text-[10px] uppercase tracking-widest font-black text-zinc-500">
                   Mano #{h.handNum}
                 </span>
-                <span className="text-[10px] tabular-nums text-zinc-300 font-black">
-                  {formatChips(h.pot)}
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-[10px] tabular-nums text-zinc-300 font-black">
+                    {formatChips(h.pot)}
+                  </span>
+                  <PlayCircle className="w-3.5 h-3.5 text-accent-300/70" />
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -215,7 +223,7 @@ export function HostSettings(props: Props) {
               <div className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">
                 {CATEGORY_LABEL[h.category]}
               </div>
-            </div>
+            </button>
           ))}
         </div>
       ),
@@ -273,12 +281,22 @@ export function HostSettings(props: Props) {
   ];
 
   return (
-    <SettingsOverlay
-      title={`Mesa ${code ?? "—"}`}
-      tabs={tabs}
-      initialTab="sala"
-      onClose={onClose}
-    />
+    <>
+      <SettingsOverlay
+        title={`Mesa ${code ?? "—"}`}
+        tabs={tabs}
+        initialTab="sala"
+        onClose={onClose}
+      />
+      {replayHand && (
+        <HandReplayModal
+          key={replayHand.id}
+          hand={replayHand}
+          cardBack={props.cardBack}
+          onClose={() => setReplayHand(null)}
+        />
+      )}
+    </>
   );
 }
 
