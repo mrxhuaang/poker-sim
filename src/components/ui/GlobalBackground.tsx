@@ -2,6 +2,7 @@
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import Grainient from "./Grainient";
+import { ACCENT_GRAINIENT } from "@/lib/brand";
 
 const GAME_PREFIXES = ["/host", "/play", "/admin"];
 
@@ -26,9 +27,9 @@ export function GlobalBackground() {
     >
       <div className="absolute inset-0">
         <Grainient
-          color1="#a78bfa"
-          color2="#0d0a12"
-          color3="#3d2a6b"
+          color1={ACCENT_GRAINIENT.color1}
+          color2={ACCENT_GRAINIENT.color2}
+          color3={ACCENT_GRAINIENT.color3}
           timeSpeed={0.22}
           colorBalance={0.05}
           warpStrength={0.9}

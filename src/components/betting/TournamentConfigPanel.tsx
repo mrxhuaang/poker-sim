@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Plus, Trash2, Wand2 } from "lucide-react";
 import type { BlindLevel, RoomConfig } from "@/lib/betting";
+import { clamp } from "@/lib/num";
 
 type Props = {
   config: RoomConfig;
@@ -34,7 +35,7 @@ function NumField({
         min={min}
         max={max}
         step={step ?? 1}
-        onChange={(e) => onChange(Math.max(min, Math.min(max, Number(e.target.value) || min)))}
+        onChange={(e) => onChange(clamp(Number(e.target.value) || min, min, max))}
         className="px-2.5 py-1.5 rounded-lg bg-black/40 ring-1 ring-white/10 text-zinc-100 text-sm outline-none focus:ring-accent-500/40 tabular-nums"
       />
     </label>

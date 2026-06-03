@@ -1,5 +1,6 @@
 import type { Card } from "./poker";
 import { shuffle, makeDeck } from "./poker";
+import { clamp } from "./num";
 
 export type SeatStatus =
   | "waiting"
@@ -586,7 +587,7 @@ export function computeSidePots(
     let potAmt = 0;
 
     for (const s of seats) {
-      const contribution = Math.min(Math.max(0, s.totalBet - prev), tier);
+      const contribution = clamp(s.totalBet - prev, 0, tier);
       potAmt += contribution;
     }
 

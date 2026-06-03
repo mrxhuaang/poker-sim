@@ -2,6 +2,7 @@
 import { useState } from "react";
 import type { BettingAction, NormalSeat, BettingRound } from "@/lib/betting";
 import { getValidActions, formatChips } from "@/lib/betting";
+import { clampInt } from "@/lib/num";
 
 type Props = {
   seat: NormalSeat;
@@ -24,7 +25,7 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
   const pot = betting.pot;
   const minVal = sliderOpt?.min ?? 0;
   const maxVal = sliderOpt?.max ?? seat.chips;
-  const clamp = (v: number) => Math.max(minVal, Math.min(maxVal, Math.round(v)));
+  const clamp = (v: number) => clampInt(v, minVal, maxVal);
   const amountKey = [
     seat.id,
     seat.bet,

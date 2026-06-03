@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { X, Lock, Check } from "lucide-react";
 import { TITLES } from "@/lib/progression";
 import type { Title } from "@/lib/progression";
+import { ACCENT, accentAlpha } from "@/lib/brand";
 
 const RANK_META: Record<string, {
   color: string;
@@ -221,9 +222,9 @@ export function RankTowerModal({
             onClick={onClose}
             className="p-2.5 rounded-2xl transition"
             style={{
-              background: "rgba(167,139,250,0.08)",
-              border: "1px solid rgba(167,139,250,0.15)",
-              color: "#a78bfa",
+              background: accentAlpha(0.08),
+              border: `1px solid ${accentAlpha(0.15)}`,
+              color: ACCENT[400],
             }}
           >
             <X className="w-4 h-4" />

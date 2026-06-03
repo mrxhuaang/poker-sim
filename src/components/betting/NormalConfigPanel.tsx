@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import type { RoomConfig } from "@/lib/betting";
+import { clamp } from "@/lib/num";
 
 type Props = {
   config: RoomConfig;
@@ -40,7 +41,7 @@ function NumberField({
       onFeedback(`${label}: ingresa un numero valido.`, "warn");
       return;
     }
-    const clamped = Math.max(min, Math.min(max, v));
+    const clamped = clamp(v, min, max);
     setDraft(String(clamped));
     onChange(clamped);
     if (clamped !== v) {
