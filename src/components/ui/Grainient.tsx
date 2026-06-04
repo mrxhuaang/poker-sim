@@ -3,6 +3,7 @@ import React, { useEffect, useRef } from "react";
 import { Renderer, Program, Mesh, Triangle } from "ogl";
 
 interface GrainientProps {
+  animate?: boolean;
   timeSpeed?: number;
   colorBalance?: number;
   warpStrength?: number;
@@ -25,6 +26,8 @@ interface GrainientProps {
   color1?: string;
   color2?: string;
   color3?: string;
+  maxDpr?: number;
+  targetFps?: number;
   className?: string;
 }
 
@@ -131,6 +134,7 @@ type GrainientCtx = {
 const ctxMap = new WeakMap<HTMLDivElement, GrainientCtx>();
 
 const Grainient: React.FC<GrainientProps> = ({
+  animate = true,
   timeSpeed = 0.25,
   colorBalance = 0.0,
   warpStrength = 1.0,
@@ -153,6 +157,8 @@ const Grainient: React.FC<GrainientProps> = ({
   color1 = "#a78bfa",
   color2 = "#0d0a12",
   color3 = "#3d2a6b",
+  maxDpr = 2,
+  targetFps,
   className = "",
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -165,7 +171,7 @@ const Grainient: React.FC<GrainientProps> = ({
       webgl: 2,
       alpha: true,
       antialias: false,
-      dpr: Math.min(window.devicePixelRatio || 1, 2),
+      dpr: Math.min(window.devicePixelRatio || 1, maxDpr),
     });
 
     const gl = renderer.gl;
@@ -228,14 +234,35 @@ const Grainient: React.FC<GrainientProps> = ({
     let isVisible = true;
     let isPageVisible = !document.hidden;
     const t0 = performance.now();
+    let lastFrameTime = 0;
+    const minFrameMs = targetFps ? 1000 / targetFps : 0;
 
     const loop = (t: number) => {
-      (program.uniforms.iTime as { value: number }).value = (t - t0) * 0.001;
-      renderer.render({ scene: mesh });
       raf = requestAnimationFrame(loop);
+
+      if (minFrameMs > 0 && t - lastFrameTime < minFrameMs) {
+        return;
+      }
+
+      lastFrameTime = t;
+      if (animate) {
+        (program.uniforms.iTime as { value: number }).value = (t - t0) * 0.001;
+      }
+
+      renderer.render({ scene: mesh });
+    };
+
+    const renderOnce = () => {
+      (program.uniforms.iTime as { value: number }).value = 0;
+      lastFrameTime = performance.now();
+      renderer.render({ scene: mesh });
     };
 
     const tryStart = () => {
+      if (!animate) {
+        renderOnce();
+        return;
+      }
       if (isVisible && isPageVisible && raf === 0) raf = requestAnimationFrame(loop);
     };
     const tryStop = () => {
@@ -243,14 +270,25 @@ const Grainient: React.FC<GrainientProps> = ({
     };
 
     const io = new IntersectionObserver(
-      ([entry]) => { isVisible = entry.isIntersecting; isVisible ? tryStart() : tryStop(); },
+      ([entry]) => {
+        isVisible = entry.isIntersecting;
+        if (isVisible) {
+          tryStart();
+        } else {
+          tryStop();
+        }
+      },
       { threshold: 0 },
     );
     io.observe(container);
 
     const onVisibility = () => {
       isPageVisible = !document.hidden;
-      isPageVisible ? tryStart() : tryStop();
+      if (isPageVisible) {
+        tryStart();
+      } else {
+        tryStop();
+      }
     };
     document.addEventListener("visibilitychange", onVisibility);
 
@@ -264,7 +302,7 @@ const Grainient: React.FC<GrainientProps> = ({
       ctxMap.delete(container);
       try { container.removeChild(canvas); } catch { /* ignore */ }
     };
-  }, []);
+  }, [animate, maxDpr, targetFps]);
 
   useEffect(() => {
     const container = containerRef.current;

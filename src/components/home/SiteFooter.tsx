@@ -68,38 +68,38 @@ export function SiteFooter() {
   }, []);
 
   return (
-    <footer className="w-full pb-3 pt-2">
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 rounded-[22px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] lg-blur sm:px-5">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+    <footer className="w-full pb-2 pt-1">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-3 rounded-[20px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.018))] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] lg-blur sm:px-4">
+        <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-300/90">
               Equipo
             </p>
-            <div className="mt-2 flex flex-wrap items-center gap-2.5">
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
               <PersonChip person={person(OWNER)} label="Autor principal" prominent />
               {contributors.map((contributor) => (
                 <PersonChip
                   key={contributor.login}
                   person={contributor}
-                  label="Colabora"
+                  label="Colaborador"
                 />
               ))}
             </div>
           </div>
 
-          <div className="flex items-center gap-3 self-start pl-0 text-[11px] text-zinc-500 lg:self-end">
+          <div className="flex items-center gap-2.5 self-start pl-0 text-[11px] text-zinc-400 lg:self-end">
             <a
               href={`https://github.com/${OWNER}/${REPO}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 transition hover:text-zinc-300"
+              className="inline-flex items-center gap-1.5 transition hover:text-zinc-200"
             >
               <GithubIcon />
               <span className="tracking-[0.14em]">{REPO}</span>
             </a>
             {stars !== null && (
-              <span className="inline-flex items-center gap-1 text-zinc-600">
-                <Star className="h-3 w-3 fill-zinc-700 text-zinc-700" />
+              <span className="inline-flex items-center gap-1 text-zinc-400">
+                <Star className="h-3 w-3 fill-zinc-500 text-zinc-500" />
                 {stars}
               </span>
             )}
@@ -125,10 +125,10 @@ function PersonChip({
       target="_blank"
       rel="noopener noreferrer"
       title={`${displayName(person.login)} | ${label}`}
-      className={`group inline-flex min-w-0 items-center gap-2 rounded-full border px-2.5 py-2 transition ${
+      className={`group inline-flex min-w-0 items-center gap-2 rounded-full border px-2 py-1.5 transition ${
         prominent
           ? "border-accent-400/16 bg-accent-500/[0.08] text-zinc-100 hover:border-accent-400/28 hover:bg-accent-500/[0.12]"
-          : "border-white/7 bg-white/[0.03] text-zinc-300 hover:border-white/12 hover:bg-white/[0.05]"
+          : "border-white/8 bg-white/[0.03] text-zinc-200 hover:border-white/14 hover:bg-white/[0.05]"
       }`}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -138,17 +138,17 @@ function PersonChip({
         loading="lazy"
         className={`rounded-full object-cover ${
           prominent
-            ? "h-9 w-9 ring-1 ring-accent-300/25"
-            : "h-8 w-8 ring-1 ring-white/10"
+            ? "h-8 w-8 ring-1 ring-accent-300/25"
+            : "h-7 w-7 ring-1 ring-white/12"
         }`}
       />
       <span className="min-w-0 leading-tight">
-        <span className="block truncate text-xs font-medium text-inherit">
+        <span className="block truncate text-[0.8rem] font-medium text-inherit">
           {displayName(person.login)}
         </span>
         <span
-          className={`block truncate text-[10px] uppercase tracking-[0.16em] ${
-            prominent ? "text-accent-200/70" : "text-zinc-500"
+          className={`block truncate text-[9px] uppercase tracking-[0.14em] ${
+            prominent ? "text-accent-200/85" : "text-zinc-400"
           }`}
         >
           {label}

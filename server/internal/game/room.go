@@ -31,14 +31,15 @@ type Room struct {
 	sb, bb     int
 	startStack int
 
-	betting *Betting
-	deck    []poker.Card
-	board   []poker.Card
-	holes   map[string][2]poker.Card
-	phase   Phase
-	winners []Winner
-	reveals map[string][2]poker.Card // shown holes at a contested showdown
-	names   map[string]string        // seat id -> display name
+	betting  *Betting
+	deck     []poker.Card
+	board    []poker.Card
+	holes    map[string][2]poker.Card
+	phase    Phase
+	winners  []Winner
+	reveals  map[string][2]poker.Card // shown holes at a contested showdown
+	names    map[string]string        // seat id -> display name
+	deadline int64                    // Unix ms when the active actor's turn expires (0 = none)
 }
 
 const defaultStartStack = 1000
