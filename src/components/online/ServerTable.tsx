@@ -2,10 +2,55 @@
 // Presentational table for the server-backed online mode. Renders public state
 // from the Go server (board, pot, seats, turn) + your private hole, and emits
 // actions. No game logic here — the server is authoritative. Reuses PlayingCard.
+import { useEffect, useState } from "react";
 import { Play, Wifi, WifiOff } from "lucide-react";
 import { cardFromId } from "@/lib/poker";
 import { PlayingCard } from "@/components/cards/PlayingCard";
-import type { PublicState } from "@/hooks/useGameSocket";
+import type { PublicState, RunResult } from "@/hooks/useGameSocket";
+
+function TurnTimer({ deadline }: { deadline?: number }) {
+  const [secs, setSecs] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!deadline) {
+      setSecs(null);
+      return;
+    }
+    const tick = () => setSecs(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
+    tick();
+    const id = setInterval(tick, 250);
+    return () => clearInterval(id);
+  }, [deadline]);
+
+  if (secs === null) return null;
+  return (
+    <span className={`text-[9px] font-black tabular-nums ${secs <= 5 ? "text-warn-400" : "text-zinc-500"}`}>
+      {secs}s
+    </span>
+  );
+}
+
+function RunBoards({ runs, nameOf }: { runs: RunResult[]; nameOf: (id: string) => string }) {
+  if (runs.length <= 1) return null;
+  return (
+    <div className="flex flex-col gap-1.5">
+      {runs.map((run, i) => (
+        <div key={i} className="rounded-2xl bg-white/[0.03] ring-1 ring-white/[0.06] px-3 py-2 flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[9px] uppercase tracking-widest font-black text-zinc-500">Run {i + 1}</span>
+            <span className="text-[9px] text-zinc-600 tabular-nums">bote {run.pot}</span>
+          </div>
+          <Cards ids={run.board} />
+          {run.winners.length > 0 && (
+            <div className="text-[10px] font-black text-success-300">
+              {run.winners.map((w) => `${nameOf(w.id)} +${w.amount}`).join(" · ")}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function Cards({ ids }: { ids: string[] }) {
   return (
@@ -25,6 +70,7 @@ export function ServerTable({
   hole,
   uid,
   connected,
+  spectator = false,
   onStart,
   onAction,
 }: {
@@ -32,6 +78,7 @@ export function ServerTable({
   hole: string[] | null;
   uid: string | null;
   connected: boolean;
+  spectator?: boolean;
   onStart: () => void;
   onAction: (action: string, amount?: number) => void;
 }) {
@@ -70,6 +117,10 @@ export function ServerTable({
         )}
       </div>
 
+      {state?.runs && state.runs.length > 1 && (
+        <RunBoards runs={state.runs} nameOf={nameOf} />
+      )}
+
       {/* Seats */}
       <div className="flex flex-col gap-1.5">
         {(state?.seats ?? []).map((s) => {
@@ -88,7 +139,10 @@ export function ServerTable({
                   {s.name || s.id.slice(0, 6)} {s.id === uid ? "(tú)" : ""}
                 </span>
                 {state?.toAct === s.id && (
-                  <span className="text-[9px] uppercase tracking-widest font-black text-accent-300">turno</span>
+                  <>
+                    <span className="text-[9px] uppercase tracking-widest font-black text-accent-300">turno</span>
+                    <TurnTimer deadline={state.deadline} />
+                  </>
                 )}
                 {reveal && <Cards ids={reveal} />}
               </div>
@@ -106,8 +160,8 @@ export function ServerTable({
         {hole && hole.length > 0 ? <Cards ids={hole} /> : <span className="text-zinc-600 text-sm">—</span>}
       </div>
 
-      {/* Controls */}
-      <Controls idle={idle} myTurn={myTurn} onStart={onStart} onAction={onAction} />
+      {/* Controls — hidden for spectators */}
+      {!spectator && <Controls idle={idle} myTurn={myTurn} onStart={onStart} onAction={onAction} />}
     </div>
   );
 }

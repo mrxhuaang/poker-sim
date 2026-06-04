@@ -1,7 +1,10 @@
 "use client";
 // Entry to the server-backed online mode: create a fresh room code or join one.
+// Also lists rooms currently open on the Go server (polled every 5 s).
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Users } from "lucide-react";
+import { useOnlineRooms } from "@/hooks/useOnlineRooms";
 
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no I/O/0/1 (ambiguous)
 
@@ -19,9 +22,16 @@ export default function OnlineLandingPage() {
   const [sb, setSb] = useState(5);
   const [bb, setBb] = useState(10);
   const [stack, setStack] = useState(1000);
+  const [runItN, setRunItN] = useState(1);
+  const [blindLevelMins, setBlindLevelMins] = useState(0);
+  const rooms = useOnlineRooms();
 
   const create = () => {
-    const q = new URLSearchParams({ sb: String(sb), bb: String(bb), stack: String(stack) });
+    const q = new URLSearchParams({
+      sb: String(sb), bb: String(bb), stack: String(stack),
+      runItN: String(runItN),
+      ...(blindLevelMins > 0 ? { blindLevelSecs: String(blindLevelMins * 60) } : {}),
+    });
     router.push(`/play/online/${genCode()}?${q.toString()}`);
   };
 
@@ -54,6 +64,34 @@ export default function OnlineLandingPage() {
           ))}
         </div>
 
+        <div className="grid grid-cols-2 gap-2">
+          <label className="flex flex-col gap-1">
+            <span className="text-[9px] uppercase tracking-widest text-zinc-500 font-black">Run it</span>
+            <select
+              value={runItN}
+              onChange={(e) => setRunItN(Number(e.target.value))}
+              className="px-2 py-1.5 rounded-lg bg-black/40 ring-1 ring-white/10 text-zinc-100 text-sm outline-none focus:ring-accent-500/40"
+            >
+              <option value={1}>1× (normal)</option>
+              <option value={2}>2× (run-it-twice)</option>
+              <option value={3}>3× (run-it-three)</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[9px] uppercase tracking-widest text-zinc-500 font-black">Subir ciegas</span>
+            <select
+              value={blindLevelMins}
+              onChange={(e) => setBlindLevelMins(Number(e.target.value))}
+              className="px-2 py-1.5 rounded-lg bg-black/40 ring-1 ring-white/10 text-zinc-100 text-sm outline-none focus:ring-accent-500/40"
+            >
+              <option value={0}>Desactivado</option>
+              <option value={5}>Cada 5 min</option>
+              <option value={10}>Cada 10 min</option>
+              <option value={15}>Cada 15 min</option>
+            </select>
+          </label>
+        </div>
+
         <button
           type="button"
           onClick={create}
@@ -61,6 +99,33 @@ export default function OnlineLandingPage() {
         >
           Crear mesa
         </button>
+
+        {rooms.length > 0 && (
+          <>
+            <div className="flex items-center gap-2">
+              <div className="h-px flex-1 bg-white/10" />
+              <span className="text-[10px] uppercase tracking-widest text-zinc-600">salas abiertas</span>
+              <div className="h-px flex-1 bg-white/10" />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              {rooms.map((r) => (
+                <button
+                  key={r.code}
+                  type="button"
+                  onClick={() => router.push(`/play/online/${r.code}`)}
+                  className="flex items-center justify-between px-3 py-2 rounded-2xl bg-white/[0.03] ring-1 ring-white/[0.06] hover:bg-accent-500/10 hover:ring-accent-400/30 transition text-left"
+                >
+                  <span className="text-sm font-bold text-zinc-100 tracking-widest">{r.code}</span>
+                  <span className="inline-flex items-center gap-1 text-xs text-zinc-500">
+                    <Users className="w-3 h-3" />
+                    {r.players}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
         <div className="flex items-center gap-2">
           <div className="h-px flex-1 bg-white/10" />
