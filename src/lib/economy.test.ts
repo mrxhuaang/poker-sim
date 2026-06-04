@@ -7,6 +7,7 @@ import {
   applyDailyBonus,
   availableCoins,
   cappedCredit,
+  creditableHands,
   dailyBonusReady,
   escrowedTotal,
 } from "./economy";
@@ -87,6 +88,28 @@ describe("economy", () => {
 
     it("floors fractional inputs", () => {
       expect(cappedCredit(500.9, 1000.9, 0.9)).toBe(500);
+    });
+  });
+
+  describe("creditableHands (anti-XP-forging delta)", () => {
+    it("grants the full verified count when nothing was credited yet", () => {
+      expect(creditableHands(8, 0)).toBe(8);
+    });
+
+    it("only grants the new delta on a repeat record", () => {
+      // Played 8 hands total in the room, 5 already credited -> only 3 new.
+      expect(creditableHands(8, 5)).toBe(3);
+    });
+
+    it("grants nothing when the verified count has not advanced", () => {
+      // Replaying record-session with no new hands -> no XP farmed.
+      expect(creditableHands(5, 5)).toBe(0);
+      expect(creditableHands(5, 9)).toBe(0);
+    });
+
+    it("clamps negative / fractional inputs", () => {
+      expect(creditableHands(-3, 0)).toBe(0);
+      expect(creditableHands(7.9, 2.9)).toBe(5);
     });
   });
 });

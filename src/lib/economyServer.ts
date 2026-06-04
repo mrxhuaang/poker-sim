@@ -16,6 +16,7 @@ import {
   applyBustRescue,
   applyDailyBonus,
   cappedCredit,
+  creditableHands,
 } from "./economy";
 import { addXp, titleForLevel, sessionXp } from "./progression";
 
@@ -297,8 +298,38 @@ export async function reconcileEscrows(uid: string): Promise<void> {
   }
 }
 
-// Registra una sesion: stats + XP + historial. El XP se RECALCULA aqui
-// (sessionXp) — el cliente no lo decide. handsPlayed/handsWon acotados.
+// Cuenta las manos (por handNum distinto) en las que `uid` participo y gano,
+// leyendo la subcoleccion autoritativa normalRooms/{code}/hands (escribible SOLO
+// por el host segun firestore.rules). El cliente no puede inflar esto. Run-it-N
+// escribe varios docs por mano: se deduplica por handNum.
+async function countVerifiedHands(
+  code: string,
+  uid: string,
+): Promise<{ played: number; won: number }> {
+  const snap = await adminDb()
+    .collection("normalRooms").doc(code).collection("hands")
+    .limit(MAX_HANDS_PER_SESSION)
+    .get();
+  const played = new Set<number>();
+  const won = new Set<number>();
+  snap.forEach((d) => {
+    const h = d.data() as {
+      handNum?: number;
+      dealtIds?: string[];
+      winners?: { id: string }[];
+    };
+    const n = Number(h.handNum ?? -1);
+    if (n < 0 || !Array.isArray(h.dealtIds) || !h.dealtIds.includes(uid)) return;
+    played.add(n);
+    if (Array.isArray(h.winners) && h.winners.some((w) => w.id === uid)) won.add(n);
+  });
+  return { played: played.size, won: won.size };
+}
+
+// Registra una sesion: stats + XP + historial. handsPlayed/handsWon NO se toman
+// del cliente: se cuentan server-side desde las manos autoritativas de la sala
+// y se acreditan por DELTA (marcador por sala) para que repetir record-session o
+// inflar los contadores no forje XP. El XP se recalcula con sessionXp().
 export async function recordSession(
   uid: string,
   data: {
@@ -312,29 +343,52 @@ export async function recordSession(
 ): Promise<void> {
   const code = String(data.code ?? "").slice(0, 64);
   const roomName = String(data.roomName ?? "").slice(0, 120);
-  const handsPlayed = Math.min(MAX_HANDS_PER_SESSION, Math.max(0, Math.floor(data.handsPlayed ?? 0)));
-  const handsWon = Math.min(handsPlayed, Math.max(0, Math.floor(data.handsWon ?? 0)));
   const net = Math.floor(Number.isFinite(data.net) ? data.net : 0);
   const biggestPot = Math.max(0, Math.floor(Number.isFinite(data.biggestPot) ? data.biggestPot : 0));
-  const xpGained = sessionXp(handsPlayed, handsWon); // server-authoritative
+  if (!code) return;
+
+  // Verdad server-side: manos realmente registradas por el host para esta sala.
+  const verified = await countVerifiedHands(code, uid);
 
   const db = adminDb();
   const ref = userRef(uid);
-  await db.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    if (!snap.exists) return;
+  const creditRef = ref.collection("sessionCredits").doc(code);
+
+  const granted = await db.runTransaction(async (tx) => {
+    const [snap, creditSnap] = await Promise.all([tx.get(ref), tx.get(creditRef)]);
+    if (!snap.exists) return { played: 0, won: 0, xp: 0 };
     const p = snap.data() as UserProfile;
+    const prior = (creditSnap.exists ? creditSnap.data() : null) as
+      | { played?: number; won?: number }
+      | null;
+
+    // Solo el delta no acreditado, acotado por llamada.
+    let played = creditableHands(verified.played, prior?.played ?? 0);
+    played = Math.min(MAX_HANDS_PER_SESSION, played);
+    let won = creditableHands(verified.won, prior?.won ?? 0);
+    won = Math.min(played, won);
+    if (played === 0 && won === 0) return { played: 0, won: 0, xp: 0 };
+
+    const xpGained = sessionXp(played, won);
     const withXp = addXp(p, xpGained);
     tx.update(ref, {
       xp: withXp.xp,
       level: withXp.level,
       title: withXp.title,
-      gamesPlayed: p.gamesPlayed + 1,
-      handsPlayed: p.handsPlayed + handsPlayed,
-      handsWon: p.handsWon + handsWon,
+      gamesPlayed: p.gamesPlayed + (played > 0 ? 1 : 0),
+      handsPlayed: p.handsPlayed + played,
+      handsWon: p.handsWon + won,
       biggestPot: Math.max(p.biggestPot, biggestPot),
     });
+    tx.set(creditRef, {
+      played: (prior?.played ?? 0) + played,
+      won: (prior?.won ?? 0) + won,
+    }, { merge: true });
+    return { played, won, xp: xpGained };
   });
+
+  // Nada nuevo acreditado: no escribir historial (evita spam de repeticiones).
+  if (granted.played === 0 && granted.won === 0) return;
 
   const id = `${code}-${Date.now().toString(36)}`;
   await ref.collection("history").doc(id).set({
@@ -342,10 +396,10 @@ export async function recordSession(
     ts: Date.now(),
     code,
     roomName,
-    handsPlayed,
-    handsWon,
+    handsPlayed: granted.played,
+    handsWon: granted.won,
     net,
-    xpGained,
+    xpGained: granted.xp,
   });
 
   // Recorta historial al cap (borra los mas viejos).

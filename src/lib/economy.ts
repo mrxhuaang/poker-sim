@@ -41,6 +41,16 @@ export function cappedCredit(
   return Math.min(want, remaining);
 }
 
+// Manos acreditables para XP/stats en esta llamada. La verdad es el conteo
+// server-side de manos de la sala donde el jugador participo (subcoleccion
+// hands, escribible SOLO por el host); el cliente no decide cuantas manos jugo.
+// El marcador `alreadyCredited` (por sala) evita re-acreditar manos ya contadas
+// en sesiones previas: solo se otorga el delta. Asi el XP no se puede forjar
+// repitiendo record-session ni inflando handsPlayed.
+export function creditableHands(verifiedTotal: number, alreadyCredited: number): number {
+  return Math.max(0, Math.floor(verifiedTotal) - Math.max(0, Math.floor(alreadyCredited)));
+}
+
 export function dailyBonusReady(lastDailyBonus: number, now: number): boolean {
   return now - lastDailyBonus >= DAILY_BONUS_INTERVAL_MS;
 }
