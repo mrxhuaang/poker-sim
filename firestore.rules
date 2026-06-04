@@ -94,7 +94,10 @@ service cloud.firestore {
              ]
           && (
                !('amount' in request.resource.data.pendingAction)
-               || request.resource.data.pendingAction.amount is number
+               || (
+                    request.resource.data.pendingAction.amount is int
+                    && request.resource.data.pendingAction.amount >= 0
+                  )
              )
         ) ||
         (

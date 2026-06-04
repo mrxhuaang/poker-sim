@@ -333,6 +333,9 @@ export function handleAction(
   amount = 0,
 ): NormalGameState {
   if (state.betting.toActId !== seatId) return state;
+  // Reject non-finite or negative amounts up front: a NaN/Infinity reaching
+  // Math.min below would poison chips/pot, and negatives are never valid.
+  if (!Number.isFinite(amount) || amount < 0) return state;
 
   const seats = state.seats.map((s) => ({ ...s }));
   const bet = { ...state.betting };
