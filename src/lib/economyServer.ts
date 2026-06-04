@@ -214,9 +214,12 @@ export async function refundBuyIn(uid: string, code: string, amount: number): Pr
     const remaining = current - give;
     if (remaining > 0) escrows[code] = remaining;
     else delete escrows[code];
-    // El reembolso saca esas monedas del bote: nunca jugaron.
+    // El reembolso saca esas monedas del bote: nunca jugaron. El nuevo totalIn
+    // nunca baja de totalOut: lo ya pagado por cash-out es un piso, de lo
+    // contrario el tope (totalIn - totalOut) quedaria negativo y se desincroniza.
     const ledger = readLedger(lsnap);
-    tx.set(lref, { totalIn: Math.max(0, ledger.totalIn - give) }, { merge: true });
+    const newTotalIn = Math.max(ledger.totalOut, ledger.totalIn - give);
+    tx.set(lref, { totalIn: newTotalIn }, { merge: true });
     tx.update(ref, { coins: p.coins + give, escrows });
   });
 }
