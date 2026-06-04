@@ -128,6 +128,33 @@ func (r *Room) Phase() Phase        { return r.phase }
 func (r *Room) Winners() []Winner   { return append([]Winner(nil), r.winners...) }
 func (r *Room) Chips(id string) int { return r.chips[id] }
 
+// ToAct returns the ID of the player whose turn it is, or "" when no active
+// betting or when the hand is in showdown/idle.
+func (r *Room) ToAct() string {
+	if r.betting == nil || r.phase == PhaseShowdown || r.phase == PhaseIdle {
+		return ""
+	}
+	return r.betting.ToAct
+}
+
+// CanCheck reports whether id can check right now (facing no bet or already
+// matched the current bet, e.g. BB preflop with no raise).
+func (r *Room) CanCheck(id string) bool {
+	if r.betting == nil || r.phase == PhaseShowdown || r.betting.ToAct != id {
+		return false
+	}
+	for _, s := range r.betting.Seats {
+		if s.ID == id {
+			return s.Bet >= r.betting.CurrentBet
+		}
+	}
+	return false
+}
+
+// SetDeadline records the Unix-millisecond deadline for the current actor's
+// turn. Pass 0 to clear. Published in PublicState so clients can show a countdown.
+func (r *Room) SetDeadline(ms int64) { r.deadline = ms }
+
 var ErrNotEnoughPlayers = errors.New("need at least 2 funded players")
 
 // StartHand shuffles a fresh deck (crypto RNG) and begins a hand.
@@ -346,7 +373,7 @@ func (r *Room) PublicMsg() ServerMsg {
 	}
 	msg, _ := encode("state", PublicState{
 		HandNum: r.handNum, Phase: string(r.phase), Board: board,
-		Pot: pot, ToAct: toAct, Seats: seats, Winners: r.winners, Reveals: reveals,
+		Pot: pot, ToAct: toAct, Deadline: r.deadline, Seats: seats, Winners: r.winners, Reveals: reveals,
 	})
 	return msg
 }
