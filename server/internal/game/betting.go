@@ -123,6 +123,11 @@ func (b *Betting) Apply(id, action string, amount int) error {
 		if betAmt <= 0 {
 			return ErrBadAmount
 		}
+		// Sub-minimum opening bets are illegal unless the player is going all-in.
+		isAllIn := betAmt == s.Chips
+		if !isAllIn && betAmt < b.MinRaise {
+			return ErrBadAmount
+		}
 		s.Chips -= betAmt
 		s.Bet += betAmt
 		s.TotalBet += betAmt

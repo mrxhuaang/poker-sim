@@ -362,6 +362,9 @@ export function handleAction(
     case "bet": {
       const betAmt = Math.min(amount, seat.chips);
       if (betAmt <= 0) return state;
+      // Sub-minimum opening bets are illegal unless the player is going all-in.
+      const isAllIn = betAmt === seat.chips;
+      if (!isAllIn && betAmt < bet.minRaise) return state;
       seat.chips -= betAmt;
       seat.bet += betAmt;
       seat.totalBet += betAmt;
