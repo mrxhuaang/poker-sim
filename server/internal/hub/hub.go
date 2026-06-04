@@ -22,6 +22,11 @@ func (c *Client) Outbound() <-chan []byte { return c.send }
 type Hub struct {
 	mu    sync.RWMutex
 	rooms map[string]map[*Client]struct{}
+
+	// AllowedOrigins, when non-empty, restricts the WS upgrade to these origin
+	// hosts (see ws.go). Empty means allow any origin (dev). Set once at startup
+	// before serving; not mutated afterwards.
+	AllowedOrigins []string
 }
 
 func New() *Hub {

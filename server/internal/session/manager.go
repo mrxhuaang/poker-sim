@@ -34,6 +34,7 @@ type Manager struct {
 	games  map[string]*game.Room
 	timers map[string]*roomTimer
 	blinds map[string]*time.Ticker // per-room blind escalation tickers
+	owners map[string]string       // room code -> uid allowed to start/configure
 }
 
 func NewManager(h *hub.Hub) *Manager {
@@ -42,7 +43,31 @@ func NewManager(h *hub.Hub) *Manager {
 		games:  make(map[string]*game.Room),
 		timers: make(map[string]*roomTimer),
 		blinds: make(map[string]*time.Ticker),
+		owners: make(map[string]string),
 	}
+}
+
+// isOwner reports whether id may start/configure the room. The owner is the
+// first non-spectator to join; if a room has no owner (e.g. it was just
+// vacated) the next request is allowed and re-establishes control.
+func (m *Manager) isOwner(code, id string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	owner := m.owners[code]
+	return owner == "" || owner == id
+}
+
+// reassignOwnerLocked picks a new owner when the current one leaves: the first
+// remaining non-spectator client, or none. Must be called with m.mu held.
+func (m *Manager) reassignOwnerLocked(code, leavingID string) {
+	for _, c := range m.hub.Clients(code) {
+		if c.Spectator || c.ID == leavingID {
+			continue
+		}
+		m.owners[code] = c.ID
+		return
+	}
+	delete(m.owners, code)
 }
 
 type actionPayload struct {
@@ -68,6 +93,9 @@ func (m *Manager) OnMessage(c *hub.Client, data []byte) {
 		if c.Spectator {
 			return // spectators observe only
 		}
+		if !m.isOwner(c.Room, c.ID) {
+			return // only the room owner deals/starts hands
+		}
 		m.handleStart(c.Room)
 	case "action":
 		if c.Spectator {
@@ -77,10 +105,16 @@ func (m *Manager) OnMessage(c *hub.Client, data []byte) {
 		if err := json.Unmarshal(msg.Payload, &p); err != nil {
 			return
 		}
+		if p.Amount < 0 {
+			return // defensive: negative amounts are never valid
+		}
 		m.handleAction(c.Room, c.ID, p.Action, p.Amount)
 	case "config":
 		if c.Spectator {
 			return
+		}
+		if !m.isOwner(c.Room, c.ID) {
+			return // only the room owner reconfigures the table
 		}
 		var p configPayload
 		if err := json.Unmarshal(msg.Payload, &p); err != nil {
@@ -107,10 +141,15 @@ func (m *Manager) handleConfig(code string, p configPayload) {
 func (m *Manager) handleStart(code string) {
 	clients := m.hub.Clients(code)
 	ids := make([]string, 0, len(clients))
+	seen := make(map[string]bool, len(clients))
 	for _, c := range clients {
-		if !c.Spectator {
-			ids = append(ids, c.ID)
+		// Skip spectators and de-duplicate uids: a player with two open tabs
+		// shares one seat, never two (which would corrupt the betting roster).
+		if c.Spectator || seen[c.ID] {
+			continue
 		}
+		seen[c.ID] = true
+		ids = append(ids, c.ID)
 	}
 
 	m.mu.Lock()
@@ -153,6 +192,10 @@ func (m *Manager) handleStart(code string) {
 // its hole cards if it's already in the live hand and is not a spectator).
 func (m *Manager) OnJoin(c *hub.Client) {
 	m.mu.Lock()
+	// First non-spectator to join owns the room (start/config authority).
+	if !c.Spectator && m.owners[c.Room] == "" {
+		m.owners[c.Room] = c.ID
+	}
 	r := m.games[c.Room]
 	if r == nil {
 		m.mu.Unlock()
@@ -184,6 +227,10 @@ func (m *Manager) OnLeave(c *hub.Client) {
 		return
 	}
 	m.mu.Lock()
+	// If the owner is leaving, hand control to another connected player.
+	if m.owners[c.Room] == c.ID {
+		m.reassignOwnerLocked(c.Room, c.ID)
+	}
 	r := m.games[c.Room]
 	if r == nil {
 		m.mu.Unlock()

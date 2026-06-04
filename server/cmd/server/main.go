@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/MrxHuaang/poker-sim/server/internal/auth"
 	"github.com/MrxHuaang/poker-sim/server/internal/hub"
@@ -23,15 +24,24 @@ func main() {
 	h := hub.New()
 
 	// Auth: when a Firebase project id is configured, the WS handshake requires
-	// a valid Firebase ID token (?token=...). Without it (dev), connections are
-	// open and use ?id=UID directly.
+	// a valid Firebase ID token (?token=...). Without it the server FAILS CLOSED
+	// in production: open connections are only allowed when ALLOW_DEV_OPEN_WS=true
+	// is set explicitly (dev/CI), so a misconfigured deploy can never silently
+	// expose an unauthenticated socket.
 	var authFn hub.Authenticator
 	if projectID := firstNonEmpty(os.Getenv("FIREBASE_PROJECT_ID"), os.Getenv("FIREBASE_ADMIN_PROJECT_ID")); projectID != "" {
 		authFn = auth.NewVerifier(projectID).Verify
 		log.Printf("WS auth enabled for Firebase project %s", projectID)
+	} else if os.Getenv("ALLOW_DEV_OPEN_WS") == "true" {
+		log.Print("WARNING: WS auth disabled (ALLOW_DEV_OPEN_WS=true). Do not use in production.")
 	} else {
-		log.Print("WS auth disabled (set FIREBASE_PROJECT_ID to enable)")
+		log.Fatal("refusing to start: set FIREBASE_PROJECT_ID to enable WS auth, or ALLOW_DEV_OPEN_WS=true for an explicitly open dev server")
 	}
+
+	// Origin allow-list for the WS upgrade. When ALLOWED_ORIGINS is set (comma
+	// separated hosts), only those origins may connect; otherwise any origin is
+	// accepted (dev). Tighten this in production via the env var.
+	h.AllowedOrigins = splitOrigins(os.Getenv("ALLOWED_ORIGINS"))
 
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -85,4 +95,19 @@ func firstNonEmpty(vals ...string) string {
 		}
 	}
 	return ""
+}
+
+// splitOrigins parses a comma-separated origin list, trimming blanks. Returns
+// nil (allow-any, dev) when the input is empty.
+func splitOrigins(raw string) []string {
+	if raw == "" {
+		return nil
+	}
+	out := make([]string, 0)
+	for _, p := range strings.Split(raw, ",") {
+		if s := strings.TrimSpace(p); s != "" {
+			out = append(out, s)
+		}
+	}
+	return out
 }

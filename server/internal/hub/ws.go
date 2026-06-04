@@ -43,10 +43,16 @@ func (h *Hub) Handler(
 			id = "anon"
 		}
 
-		conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-			// Dev: allow any origin. Tighten to the app's origin before prod.
-			InsecureSkipVerify: true,
-		})
+		// Origin check: when AllowedOrigins is configured, the websocket library
+		// verifies the request Origin host against these patterns. Without it we
+		// fall back to allow-any (dev only).
+		opts := &websocket.AcceptOptions{}
+		if len(h.AllowedOrigins) > 0 {
+			opts.OriginPatterns = h.AllowedOrigins
+		} else {
+			opts.InsecureSkipVerify = true
+		}
+		conn, err := websocket.Accept(w, r, opts)
 		if err != nil {
 			return
 		}
