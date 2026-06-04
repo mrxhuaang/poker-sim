@@ -29,13 +29,14 @@ func encode(typ string, payload any) (ServerMsg, error) {
 // PublicState is broadcast to everyone in the room. It carries the board, pot,
 // phase, whose turn, and per-seat public info — but NEVER hole cards.
 type PublicState struct {
-	HandNum int          `json:"handNum"`
-	Phase   string       `json:"phase"`
-	Board   []string     `json:"board"` // community card ids
-	Pot     int          `json:"pot"`
-	ToAct   string       `json:"toAct"`
-	Seats   []PublicSeat `json:"seats"`
-	Winners []Winner     `json:"winners,omitempty"`
+	HandNum  int          `json:"handNum"`
+	Phase    string       `json:"phase"`
+	Board    []string     `json:"board"` // community card ids
+	Pot      int          `json:"pot"`
+	ToAct    string       `json:"toAct"`
+	Deadline int64        `json:"deadline,omitempty"` // Unix ms; when ToAct's turn expires (0 = no timer)
+	Seats    []PublicSeat `json:"seats"`
+	Winners  []Winner     `json:"winners,omitempty"`
 	// Reveals holds the shown hole cards at a contested showdown (seatID -> 2
 	// card ids). Empty otherwise — uncontested (fold-to-one) wins never reveal.
 	Reveals map[string][]string `json:"reveals,omitempty"`
