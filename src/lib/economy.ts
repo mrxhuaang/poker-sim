@@ -25,6 +25,22 @@ export function availableCoins(wallet: Pick<Wallet, "coins">): number {
   return Math.max(0, Math.floor(wallet.coins));
 }
 
+// Tope de pago por sala. Una partida de dinero es de suma cero: el total que
+// SALE de una sala (cash-outs) nunca puede exceder lo que ENTRO (buy-ins).
+// El host es la autoridad de los stacks (lobby.chips), pero esa autoridad no
+// puede acunar monedas: aunque infle el stack de un jugador, el credito se
+// recorta a lo que queda del bote real de la sala (totalIn - totalOut). El host
+// puede decidir quien gana o pierde, no crear monedas de la nada.
+export function cappedCredit(
+  desired: number,
+  totalIn: number,
+  totalOut: number,
+): number {
+  const remaining = Math.max(0, Math.floor(totalIn) - Math.floor(totalOut));
+  const want = Math.max(0, Math.floor(Number.isFinite(desired) ? desired : 0));
+  return Math.min(want, remaining);
+}
+
 export function dailyBonusReady(lastDailyBonus: number, now: number): boolean {
   return now - lastDailyBonus >= DAILY_BONUS_INTERVAL_MS;
 }

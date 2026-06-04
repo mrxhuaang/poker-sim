@@ -6,6 +6,7 @@ import {
   applyBustRescue,
   applyDailyBonus,
   availableCoins,
+  cappedCredit,
   dailyBonusReady,
   escrowedTotal,
 } from "./economy";
@@ -54,5 +55,38 @@ describe("economy", () => {
   it("no rescue when above threshold", () => {
     const r = applyBustRescue({ coins: 5000, escrows: {}, lastDailyBonus: 0 });
     expect(r.granted).toBe(0);
+  });
+
+  describe("cappedCredit (zero-sum room payout cap)", () => {
+    it("pays the full desired amount when within the room pot", () => {
+      expect(cappedCredit(500, 1000, 0)).toBe(500);
+      expect(cappedCredit(1000, 1000, 0)).toBe(1000);
+    });
+
+    it("blocks minting: a host-inflated stack is capped to the room pot", () => {
+      // Host sets lobby.chips to 999999 but only 1000 was bought in.
+      expect(cappedCredit(999_999, 1000, 0)).toBe(1000);
+    });
+
+    it("accounts for coins already cashed out of the room", () => {
+      // 1000 in, 800 already paid out -> at most 200 left to pay.
+      expect(cappedCredit(500, 1000, 800)).toBe(200);
+      expect(cappedCredit(500, 1000, 1000)).toBe(0);
+    });
+
+    it("never pays from an empty pot", () => {
+      expect(cappedCredit(500, 0, 0)).toBe(0);
+    });
+
+    it("clamps negative / non-finite desired to zero", () => {
+      expect(cappedCredit(-5, 1000, 0)).toBe(0);
+      expect(cappedCredit(NaN, 1000, 0)).toBe(0);
+      // Infinity is non-finite -> treated as 0 (safe: never an unbounded payout).
+      expect(cappedCredit(Infinity, 1000, 0)).toBe(0);
+    });
+
+    it("floors fractional inputs", () => {
+      expect(cappedCredit(500.9, 1000.9, 0.9)).toBe(500);
+    });
   });
 });

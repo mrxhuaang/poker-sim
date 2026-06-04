@@ -68,6 +68,13 @@ service cloud.firestore {
       }
     }
 
+    // Libro de suma cero por sala (totalIn / totalOut). Lo escribe SOLO el
+    // backend (Admin SDK, que ignora estas reglas) en /api/economy. Cerrado al
+    // cliente: ni lee el bote ni puede tocar el tope de pago.
+    match /roomLedgers/{code} {
+      allow read, write: if false;
+    }
+
     // Normal + Tournament rooms
     match /normalRooms/{code} {
       allow read: if isSignedIn();

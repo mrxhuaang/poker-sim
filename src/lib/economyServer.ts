@@ -15,6 +15,7 @@ import {
   STARTING_COINS,
   applyBustRescue,
   applyDailyBonus,
+  cappedCredit,
 } from "./economy";
 import { addXp, titleForLevel, sessionXp } from "./progression";
 
@@ -48,6 +49,23 @@ export type UserProfile = {
 
 function userRef(uid: string) {
   return adminDb().collection("users").doc(uid);
+}
+
+// Libro de la sala (autoridad del servidor; el cliente no puede leerlo ni
+// escribirlo, ver firestore.rules). Hace cumplir la suma cero: el total pagado
+// (cash-outs) nunca excede el total comprometido (buy-ins) de la sala.
+type RoomLedger = { totalIn: number; totalOut: number };
+
+function ledgerRef(code: string) {
+  return adminDb().collection("roomLedgers").doc(code);
+}
+
+function readLedger(snap: FirebaseFirestore.DocumentSnapshot): RoomLedger {
+  const d = (snap.exists ? snap.data() : null) as Partial<RoomLedger> | null;
+  return {
+    totalIn: Math.max(0, Math.floor(d?.totalIn ?? 0)),
+    totalOut: Math.max(0, Math.floor(d?.totalOut ?? 0)),
+  };
 }
 
 function randomSeed(): string {
@@ -161,14 +179,19 @@ export async function buyIn(uid: string, code: string, amount: number): Promise<
   const amt = Math.floor(amount);
   if (!(amt > 0) || amt > MAX_BUYIN) throw new Error("Monto invalido");
   const ref = userRef(uid);
+  const lref = ledgerRef(code);
   return adminDb().runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
+    // Lecturas antes de escrituras (requisito de las transacciones Firestore).
+    const [snap, lsnap] = await Promise.all([tx.get(ref), tx.get(lref)]);
     if (!snap.exists) throw new Error("Perfil inexistente");
     const p = snap.data() as UserProfile;
     const escrows = { ...(p.escrows ?? {}) };
     if (p.coins < amt) throw new Error("Saldo insuficiente");
     escrows[code] = (escrows[code] ?? 0) + amt;
     const coins = p.coins - amt;
+    const ledger = readLedger(lsnap);
+    // El buy-in entra al bote de la sala.
+    tx.set(lref, { totalIn: ledger.totalIn + amt, totalOut: ledger.totalOut }, { merge: true });
     tx.update(ref, { coins, escrows });
     return coins;
   });
@@ -178,8 +201,9 @@ export async function refundBuyIn(uid: string, code: string, amount: number): Pr
   const amt = Math.max(0, Math.floor(amount));
   if (amt === 0) return;
   const ref = userRef(uid);
+  const lref = ledgerRef(code);
   await adminDb().runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
+    const [snap, lsnap] = await Promise.all([tx.get(ref), tx.get(lref)]);
     if (!snap.exists) return;
     const p = snap.data() as UserProfile;
     const escrows = { ...(p.escrows ?? {}) };
@@ -190,13 +214,19 @@ export async function refundBuyIn(uid: string, code: string, amount: number): Pr
     const remaining = current - give;
     if (remaining > 0) escrows[code] = remaining;
     else delete escrows[code];
+    // El reembolso saca esas monedas del bote: nunca jugaron.
+    const ledger = readLedger(lsnap);
+    tx.set(lref, { totalIn: Math.max(0, ledger.totalIn - give) }, { merge: true });
     tx.update(ref, { coins: p.coins + give, escrows });
   });
 }
 
-// Cash-out autoritativo: lee lobby.chips (lo controla el host, no el jugador)
-// y lo acredita, borrando el escrow. Si el lobby ya no existe (sala borrada),
-// devuelve el escrow exacto (refund). Nunca acuna por encima del escrow + chips.
+// Cash-out autoritativo. lobby.chips lo controla el host (autoridad de stacks),
+// pero NO puede acunar monedas: el credito se recorta al bote real de la sala
+// (totalIn - totalOut) via cappedCredit. Asi el host puede repartir quien gana
+// o pierde, pero el total que sale de la sala jamas supera lo que entro. Si la
+// sala no tiene libro (creada antes de esta version), el tope conservador es el
+// propio escrow del jugador: nunca paga mas de lo que ese jugador aporto.
 export async function cashOut(uid: string, code: string): Promise<number | null> {
   const db = adminDb();
   const lobbySnap = await db
@@ -208,14 +238,27 @@ export async function cashOut(uid: string, code: string): Promise<number | null>
     : null;
 
   const ref = userRef(uid);
+  const lref = ledgerRef(code);
   return db.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
+    const [snap, lsnap] = await Promise.all([tx.get(ref), tx.get(lref)]);
     if (!snap.exists) return null;
     const p = snap.data() as UserProfile;
     const escrows = { ...(p.escrows ?? {}) };
     if (!(code in escrows)) return null; // ya liquidado
+    const ownEscrow = Math.max(0, escrows[code] ?? 0);
     // Si hay lobby, la verdad del host manda; si no, devolver el escrow.
-    const credit = lobbyChips ?? Math.max(0, escrows[code] ?? 0);
+    const desired = lobbyChips ?? ownEscrow;
+
+    let credit: number;
+    if (lsnap.exists) {
+      const ledger = readLedger(lsnap);
+      credit = cappedCredit(desired, ledger.totalIn, ledger.totalOut);
+      tx.set(lref, { totalOut: ledger.totalOut + credit }, { merge: true });
+    } else {
+      // Sala legacy sin libro: tope conservador al propio aporte del jugador.
+      credit = Math.min(Math.max(0, Math.floor(desired)), ownEscrow);
+    }
+
     delete escrows[code];
     const coins = p.coins + credit;
     tx.update(ref, { coins, escrows });
