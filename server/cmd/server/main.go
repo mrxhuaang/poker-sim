@@ -55,9 +55,10 @@ func main() {
 	mux.HandleFunc("/ws", h.Handler(authFn, mgr.OnJoin, mgr.OnLeave, mgr.OnMessage))
 
 	// Room list: returns all active rooms with player count. Used by the lobby UI.
-	mux.HandleFunc("/rooms", func(w http.ResponseWriter, _ *http.Request) {
+	// CORS is restricted to the configured origins (or any origin in dev).
+	mux.HandleFunc("/rooms", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		setCORS(w, r, h.AllowedOrigins)
 		_ = json.NewEncoder(w).Encode(h.RoomsSnapshot())
 	})
 
@@ -95,6 +96,24 @@ func firstNonEmpty(vals ...string) string {
 		}
 	}
 	return ""
+}
+
+// setCORS sets Access-Control-Allow-Origin. With no allow-list configured it
+// falls back to "*" (dev). Otherwise it echoes the request Origin only when it
+// is in the allow-list, so room codes are not readable from arbitrary origins.
+func setCORS(w http.ResponseWriter, r *http.Request, allowed []string) {
+	if len(allowed) == 0 {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		return
+	}
+	origin := r.Header.Get("Origin")
+	for _, a := range allowed {
+		if a == origin {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Vary", "Origin")
+			return
+		}
+	}
 }
 
 // splitOrigins parses a comma-separated origin list, trimming blanks. Returns
