@@ -31,7 +31,7 @@ export function useNormalRoom(code: string | null) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
-    if (!code) { setRoom(null); return; }
+    if (!code) return;
     retryRef.current = 0;
 
     let unsub: (() => void) | null = null;
@@ -70,16 +70,16 @@ export function useNormalRoom(code: string | null) {
     };
   }, [code]);
 
-  return room;
+  return code ? room : null;
 }
 
 export function useNormalLobby(code: string | null): NormalLobbyPlayer[] {
   const [list, setList] = useState<NormalLobbyPlayer[]>([]);
   useEffect(() => {
-    if (!code) { setList([]); return; }
+    if (!code) return;
     return subscribeNormalLobby(code, setList);
   }, [code]);
-  return list;
+  return code ? list : [];
 }
 
 // Lobby: live public rooms. `ready` is false until the first snapshot arrives
@@ -118,23 +118,21 @@ export function useQueue(
 ): { queue: QueueEntry[]; position: number } {
   const [queue, setQueue] = useState<QueueEntry[]>([]);
   useEffect(() => {
-    if (!code) {
-      setQueue([]);
-      return;
-    }
+    if (!code) return;
     return subscribeQueue(code, setQueue);
   }, [code]);
-  const idx = uid ? queue.findIndex((q) => q.uid === uid) : -1;
-  return { queue, position: idx < 0 ? 0 : idx + 1 };
+  const safeQueue = code ? queue : [];
+  const idx = uid ? safeQueue.findIndex((q) => q.uid === uid) : -1;
+  return { queue: safeQueue, position: idx < 0 ? 0 : idx + 1 };
 }
 
 export function useStackRequests(code: string | null): StackRequest[] {
   const [reqs, setReqs] = useState<StackRequest[]>([]);
   useEffect(() => {
-    if (!code) { setReqs([]); return; }
+    if (!code) return;
     return subscribeStackRequests(code, setReqs);
   }, [code]);
-  return reqs;
+  return code ? reqs : [];
 }
 
 // Subscribes to this device's own hole doc and resolves it to plaintext cards.
@@ -148,7 +146,7 @@ export function useNormalHole(
 ) {
   const [hole, setHole] = useState<DecryptedHole | null | undefined>(undefined);
   useEffect(() => {
-    if (!code || !seatId) { setHole(null); return; }
+    if (!code || !seatId) return;
     let cancelled = false;
     const unsub = subscribeNormalHole(code, seatId, (doc) => {
       if (!doc) { if (!cancelled) setHole(null); return; }
@@ -168,5 +166,5 @@ export function useNormalHole(
     });
     return () => { cancelled = true; unsub(); };
   }, [code, seatId, privateKeyUid]);
-  return hole;
+  return code && seatId ? hole : null;
 }

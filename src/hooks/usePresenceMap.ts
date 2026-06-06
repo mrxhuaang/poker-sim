@@ -24,10 +24,7 @@ export function usePresenceMap(code: string | null): Record<string, boolean> {
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    if (!code) {
-      setRawDocs([]);
-      return;
-    }
+    if (!code) return;
     const db = getDb();
     return onSnapshot(
       collection(db, "normalRooms", code, "presence"),
@@ -42,7 +39,7 @@ export function usePresenceMap(code: string | null): Record<string, boolean> {
     return () => clearInterval(t);
   }, []);
 
-  return useMemo(
+  const presenceMap = useMemo(
     () => {
       const map: Record<string, boolean> = {};
       for (const d of rawDocs) map[d.uid] = isAlive(d);
@@ -51,4 +48,6 @@ export function usePresenceMap(code: string | null): Record<string, boolean> {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [rawDocs, tick],
   );
+
+  return code ? presenceMap : {};
 }
