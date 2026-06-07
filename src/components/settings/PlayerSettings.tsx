@@ -53,7 +53,7 @@ export function PlayerSettings({ code, joinUrl, lobby, selfUid, onClose }: Props
             <button
               type="button"
               onClick={() => copy(code ?? "", setCopied)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/[0.05] hover:bg-white/10 ring-1 ring-white/10 text-zinc-200 text-[11px] font-bold uppercase tracking-widest transition btn-press"
+              className="glass-button glass-button-ghost btn-press inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-200"
             >
               {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
               Código
@@ -61,7 +61,7 @@ export function PlayerSettings({ code, joinUrl, lobby, selfUid, onClose }: Props
             <button
               type="button"
               onClick={() => copy(joinUrl, setCopiedLink)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/[0.05] hover:bg-white/10 ring-1 ring-white/10 text-zinc-200 text-[11px] font-bold uppercase tracking-widest transition btn-press"
+              className="glass-button glass-button-ghost btn-press inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-200"
             >
               {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Link2 className="w-3.5 h-3.5" />}
               Enlace
@@ -74,7 +74,7 @@ export function PlayerSettings({ code, joinUrl, lobby, selfUid, onClose }: Props
                     .share({ title: "Noir", text: `Únete (${code})`, url: joinUrl })
                     .catch(() => {})
                 }
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/[0.05] hover:bg-white/10 ring-1 ring-white/10 text-zinc-200 text-[11px] font-bold uppercase tracking-widest transition btn-press"
+                className="glass-button glass-button-accent btn-press inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-200"
               >
                 <Share2 className="w-3.5 h-3.5" />
                 Compartir

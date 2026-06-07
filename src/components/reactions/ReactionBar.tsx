@@ -24,7 +24,7 @@ export function ReactionBar({ code, uid }: Props) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="p-3 rounded-2xl glass hover:bg-white/10 ring-1 ring-white/10 text-zinc-300 transition btn-press shadow-xl"
+        className="glass-icon-button btn-press rounded-2xl p-3 text-zinc-300 shadow-xl"
         title="Reaccionar"
       >
         <Smile className="w-5 h-5" />
@@ -33,14 +33,14 @@ export function ReactionBar({ code, uid }: Props) {
   }
 
   return (
-    <div className="flex items-center gap-1 px-2 py-1.5 rounded-2xl bg-zinc-900/95 ring-1 ring-white/10 shadow-2xl animate-in slide-in-from-bottom-2 fade-in duration-150">
+    <div className="glass-panel flex items-center gap-1 rounded-2xl px-2 py-1.5 animate-in slide-in-from-bottom-2 fade-in duration-150">
       {REACTIONS.map((e) => (
         <button
           key={e}
           type="button"
           onClick={() => emit(e)}
           disabled={cooldown || !uid}
-          className="w-9 h-9 flex items-center justify-center rounded-xl text-xl hover:bg-white/10 disabled:opacity-40 transition btn-press"
+          className="glass-icon-button btn-press flex h-9 w-9 items-center justify-center rounded-xl text-xl disabled:opacity-40"
           title={e}
         >
           {e}
@@ -49,7 +49,7 @@ export function ReactionBar({ code, uid }: Props) {
       <button
         type="button"
         onClick={() => setOpen(false)}
-        className="ml-1 p-1.5 rounded-xl text-zinc-500 hover:bg-white/10 hover:text-zinc-200 transition"
+        className="glass-icon-button btn-press ml-1 rounded-xl p-1.5 text-zinc-400"
       >
         <X className="w-4 h-4" />
       </button>

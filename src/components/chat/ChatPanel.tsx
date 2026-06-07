@@ -47,7 +47,7 @@ export function ChatPanel({ code, uid, name, seed, messages }: Props) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="relative p-3 rounded-2xl glass hover:bg-white/10 ring-1 ring-white/10 text-zinc-300 transition btn-press shadow-xl"
+        className="glass-icon-button btn-press relative rounded-2xl p-3 text-zinc-300 shadow-xl"
       >
         <MessageSquare className="w-5 h-5" />
         {unread > 0 && (
@@ -60,7 +60,7 @@ export function ChatPanel({ code, uid, name, seed, messages }: Props) {
   }
 
   return (
-    <div className="h-72 w-[min(20rem,calc(100vw-1.5rem))] flex flex-col bg-zinc-900/95 backdrop-blur-xl ring-1 ring-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-2 fade-in duration-200">
+    <div className="glass-panel h-72 w-[min(20rem,calc(100vw-1.5rem))] animate-in slide-in-from-bottom-2 fade-in duration-200 flex flex-col overflow-hidden rounded-2xl">
       <div className="flex items-center justify-between px-3 py-2 border-b border-white/5">
         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-300">
           <MessageSquare className="w-3.5 h-3.5 text-zinc-300" /> Chat
@@ -68,7 +68,7 @@ export function ChatPanel({ code, uid, name, seed, messages }: Props) {
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="p-1 rounded-lg hover:bg-white/10 text-zinc-500 hover:text-white transition"
+          className="glass-icon-button btn-press rounded-lg p-1 text-zinc-400"
         >
           <X className="w-4 h-4" />
         </button>
@@ -114,7 +114,7 @@ export function ChatPanel({ code, uid, name, seed, messages }: Props) {
         <button
           type="submit"
           disabled={!text.trim() || !uid}
-          className="p-2 rounded-xl bg-white/[0.10] hover:bg-white/[0.16] disabled:opacity-30 text-zinc-100 ring-1 ring-white/10 transition btn-press"
+          className="glass-icon-button glass-button-accent btn-press rounded-xl p-2 text-zinc-100 disabled:opacity-30"
         >
           <Send className="w-3.5 h-3.5" />
         </button>

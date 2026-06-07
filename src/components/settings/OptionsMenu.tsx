@@ -49,7 +49,7 @@ export function OptionsMenu({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="relative p-3 rounded-2xl glass hover:bg-white/10 ring-1 ring-white/10 text-zinc-300 transition btn-press shadow-xl"
+        className="glass-icon-button btn-press relative rounded-2xl p-3 text-zinc-300 shadow-xl"
         aria-label="Opciones"
       >
         <Menu className="w-5 h-5" />
@@ -61,7 +61,7 @@ export function OptionsMenu({
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-2 w-60 rounded-2xl bg-zinc-900/97 backdrop-blur-xl ring-1 ring-white/10 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150 z-[80]">
+        <div className="glass-panel absolute left-0 top-full z-[80] mt-2 w-60 overflow-hidden rounded-2xl animate-in fade-in slide-in-from-top-1 duration-150">
           <div className="flex items-center gap-2.5 px-3 py-3 border-b border-white/5">
             {seed ? (
               <Avatar seed={seed} size={32} />
@@ -125,10 +125,10 @@ function Item({
     <button
       type="button"
       onClick={onClick}
-      className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition text-left ${
+      className={`btn-press flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition ${
         danger
-          ? "text-rose-300 hover:bg-rose-500/10"
-          : "text-zinc-200 hover:bg-white/5"
+          ? "glass-button glass-button-danger"
+          : "glass-button glass-button-ghost text-zinc-200"
       }`}
     >
       {icon}

@@ -66,7 +66,7 @@ export function JoinWithStack({
           <button
             type="button"
             onClick={() => setSeed(randomSeed())}
-            className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-xs text-zinc-200 ring-1 ring-white/10 transition hover:bg-white/10 btn-press"
+            className="glass-button glass-button-ghost btn-press inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs"
           >
             <Shuffle className="w-3.5 h-3.5" />
             Otro avatar
@@ -117,7 +117,7 @@ export function JoinWithStack({
               onClick={() =>
                 setStack(cap !== undefined ? Math.min(suggestedStack, cap) : suggestedStack)
               }
-              className="px-3 py-3 rounded-2xl text-xs text-zinc-400 glass ring-1 ring-white/8 hover:bg-white/10 transition"
+              className="glass-button glass-button-ghost btn-press rounded-2xl px-3 py-3 text-xs text-zinc-300"
             >
               ×1
             </button>
@@ -126,7 +126,7 @@ export function JoinWithStack({
             <button
               type="button"
               onClick={() => setStack(cap)}
-              className="px-3 py-3 rounded-2xl text-xs text-zinc-400 glass ring-1 ring-white/8 hover:bg-white/10 transition"
+              className="glass-button glass-button-ghost btn-press rounded-2xl px-3 py-3 text-xs text-zinc-300"
             >
               Máx
             </button>
@@ -168,7 +168,7 @@ export function JoinWithStack({
       <button
         type="submit"
         disabled={!name.trim() || stack <= 0 || loading || locked || overCap || broke}
-        className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-accent-700/70 hover:bg-accent-600/75 disabled:opacity-30 text-accent-100 font-medium btn-press transition"
+        className="glass-button glass-button-accent btn-press inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 font-medium text-accent-100 disabled:opacity-30"
       >
         {loading ? (
           <Loader2 className="w-4 h-4 animate-spin" />
