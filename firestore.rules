@@ -69,7 +69,8 @@ service cloud.firestore {
 
       match /holes/{seatId} {
         allow read: if isSignedIn() && (
-          resource.data.ownerUid == request.auth.uid ||
+          (resource == null && seatId == request.auth.uid) ||
+          (resource != null && resource.data.ownerUid == request.auth.uid) ||
           get(/databases/$(database)/documents/rooms/$(code)).data.hostUid == request.auth.uid
         );
         allow write: if isSignedIn() && (
@@ -145,8 +146,13 @@ service cloud.firestore {
       }
 
       match /holes/{seatId} {
+        // resource is null before the first deal (doc doesn't exist yet).
+        // Accessing resource.data on null would throw and terminate the listener.
+        // Allow pre-deal subscribe by matching seatId to the caller's uid.
         allow read: if isSignedIn() && (
-          resource.data.ownerUid == request.auth.uid || isHost(code)
+          (resource == null && seatId == request.auth.uid) ||
+          (resource != null && resource.data.ownerUid == request.auth.uid) ||
+          isHost(code)
         );
         allow write: if isHost(code);
       }
