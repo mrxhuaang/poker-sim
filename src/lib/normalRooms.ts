@@ -508,9 +508,9 @@ export async function postPlayerAction(
   amount?: number,
 ): Promise<void> {
   const db = getDb();
-  await updateDoc(doc(db, "normalRooms", code), {
-    pendingAction: { seatId, action, amount: amount ?? null, ts: Date.now() },
-  });
+  const pendingAction: Record<string, unknown> = { seatId, action, ts: Date.now() };
+  if (amount != null) pendingAction.amount = Math.round(amount);
+  await updateDoc(doc(db, "normalRooms", code), { pendingAction });
 }
 
 export async function postPlayerVote(
