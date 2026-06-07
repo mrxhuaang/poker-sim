@@ -2,11 +2,12 @@
 // Presentational table for the server-backed online mode. Renders public state
 // from the Go server (board, pot, seats, turn) + your private hole, and emits
 // actions. No game logic here — the server is authoritative. Reuses PlayingCard.
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { Play, Wifi, WifiOff } from "lucide-react";
+import { Play, RefreshCw, Wifi, WifiOff } from "lucide-react";
 import { cardFromId } from "@/lib/poker";
 import { PlayingCard } from "@/components/cards/PlayingCard";
-import type { PublicState, RunResult } from "@/hooks/useGameSocket";
+import type { ConnStatus, PublicState, RunResult } from "@/hooks/useGameSocket";
 
 function TurnTimer({ deadline }: { deadline?: number }) {
   const [secs, setSecs] = useState<number | null>(null);
@@ -65,11 +66,19 @@ function Cards({ ids }: { ids: string[] }) {
   );
 }
 
+const STATUS_UI: Record<ConnStatus, { label: string; icon: ReactNode; cls: string }> = {
+  connected: { label: "conectado", icon: <Wifi className="w-3.5 h-3.5" />, cls: "text-success-400" },
+  connecting: { label: "conectando…", icon: <WifiOff className="w-3.5 h-3.5" />, cls: "text-warn-400" },
+  reconnecting: { label: "reconectando…", icon: <RefreshCw className="w-3.5 h-3.5 motion-safe:animate-spin" />, cls: "text-warn-400" },
+  error: { label: "error", icon: <WifiOff className="w-3.5 h-3.5" />, cls: "text-rose-400" },
+};
+
 export function ServerTable({
   state,
   hole,
   uid,
   connected,
+  status = connected ? "connected" : "connecting",
   spectator = false,
   onStart,
   onAction,
@@ -78,6 +87,7 @@ export function ServerTable({
   hole: string[] | null;
   uid: string | null;
   connected: boolean;
+  status?: ConnStatus;
   spectator?: boolean;
   onStart: () => void;
   onAction: (action: string, amount?: number) => void;
@@ -87,6 +97,7 @@ export function ServerTable({
   const idle = !state || state.phase === "idle" || state.phase === "showdown";
   const nameOf = (id: string) =>
     state?.seats.find((s) => s.id === id)?.name || id.slice(0, 6);
+  const connUI = STATUS_UI[status];
 
   return (
     <div className="w-[min(720px,94vw)] mx-auto flex flex-col gap-4">
@@ -94,9 +105,9 @@ export function ServerTable({
         <span className="text-xs uppercase tracking-widest font-black text-zinc-500">
           {state ? `Mano #${state.handNum} · ${phase}` : "Sin mano"}
         </span>
-        <span className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${connected ? "text-success-400" : "text-warn-400"}`}>
-          {connected ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
-          {connected ? "conectado" : "conectando…"}
+        <span className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${connUI.cls}`}>
+          {connUI.icon}
+          {connUI.label}
         </span>
       </div>
 
