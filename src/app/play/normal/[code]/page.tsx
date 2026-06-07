@@ -573,26 +573,26 @@ function PlayNormalPageInner() {
   const hasRevealedBoth = hasRevealedLeft && hasRevealedRight;
 
   const showMuckUI = canMuckOrShow ? (
-    <div className="flex gap-2 mt-3 justify-center items-center p-3 rounded-2xl bg-zinc-900/80 backdrop-blur-md ring-1 ring-white/10">
-      <span className="text-[10px] uppercase font-black tracking-widest text-zinc-500 mr-2">Cartas</span>
+    <div className="glass-panel mt-3 flex items-center justify-center gap-2 rounded-[24px] p-3">
+      <span className="mr-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Cartas</span>
       <button
         onClick={() => postPlayerAction(code!, uid!, "show-card", 0)}
         disabled={hasRevealedLeft}
-        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition ${hasRevealedLeft ? "bg-accent-500/10 text-accent-500 opacity-50" : "bg-white/10 hover:bg-white/20 text-white"}`}
+        className={`btn-press rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] ${hasRevealedLeft ? "glass-button glass-button-accent opacity-50" : "glass-button glass-button-ghost"}`}
       >
         Izq
       </button>
       <button
         onClick={() => postPlayerAction(code!, uid!, "show-card", 1)}
         disabled={hasRevealedRight}
-        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition ${hasRevealedRight ? "bg-accent-500/10 text-accent-500 opacity-50" : "bg-white/10 hover:bg-white/20 text-white"}`}
+        className={`btn-press rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] ${hasRevealedRight ? "glass-button glass-button-accent opacity-50" : "glass-button glass-button-ghost"}`}
       >
         Der
       </button>
       <button
         onClick={() => postPlayerAction(code!, uid!, "show-card", 2)}
         disabled={hasRevealedBoth}
-        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition ${hasRevealedBoth ? "bg-accent-500/10 text-accent-500 opacity-50" : "bg-accent-700/70 hover:bg-accent-600/75 text-accent-100 shadow-lg shadow-accent-700/20"}`}
+        className={`btn-press rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] ${hasRevealedBoth ? "glass-button glass-button-accent opacity-50" : "glass-button glass-button-accent"}`}
       >
         Ambas
       </button>
@@ -613,7 +613,7 @@ function PlayNormalPageInner() {
           />
         )}
         {rebuyPending && (
-          <div className="text-center py-3 bg-accent-500/10 rounded-2xl border border-accent-500/20 text-[11px] font-bold text-accent-200 uppercase tracking-widest">
+          <div className="glass-panel rounded-2xl py-3 text-center text-[11px] font-bold uppercase tracking-[0.18em] text-accent-200">
             Rebuy pendiente ({formatChips(myRequest!.requestedStack)})
           </div>
         )}
@@ -628,7 +628,7 @@ function PlayNormalPageInner() {
   const centerOverlay = (
     <>
       {!gs && inLobby && (
-        <div className="flex flex-col items-center gap-4 px-4 py-5 rounded-2xl bg-zinc-900/90 backdrop-blur-md ring-1 ring-white/10 shadow-2xl">
+        <div className="glass-panel flex flex-col items-center gap-4 rounded-[28px] px-4 py-5">
           <SeatPicker
             myUid={uid ?? ""}
             myPreferredSlot={myPreferredSlot}
@@ -643,7 +643,7 @@ function PlayNormalPageInner() {
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="text-[10px] text-zinc-600 hover:text-zinc-400 transition underline underline-offset-2"
+              className="glass-chip btn-press px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-300"
             >
               ¿Sin actualizaciones? Refrescar
             </button>
@@ -652,7 +652,7 @@ function PlayNormalPageInner() {
       )}
       {result && gs && (
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 fade-in duration-500">
-          <div className="px-8 py-4 rounded-[28px] bg-zinc-900/95 backdrop-blur-xl ring-2 ring-accent-400/50 shadow-[0_20px_80px_-20px_rgba(167,139,250,0.5)] flex flex-col items-center">
+          <div className="glass-panel flex flex-col items-center rounded-[30px] px-8 py-4 ring-1 ring-accent-400/40">
             <span className="text-[10px] font-black uppercase tracking-[0.4em] text-accent-400 mb-1">
               Mano terminada
             </span>
@@ -818,15 +818,15 @@ function FullRoomPanel({
   const queued = queuePos > 0;
   return (
     <div className="fixed inset-0 bg-[#0b0b0b] flex items-center justify-center p-6 animate-in fade-in duration-500">
-      <div className="w-full max-w-sm flex flex-col gap-6 text-center">
+      <div className="glass-panel flex w-full max-w-sm flex-col gap-6 rounded-[30px] p-6 text-center">
         {code && (
-          <div className="mx-auto px-4 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-[10px] font-mono uppercase tracking-[0.3em] text-zinc-500">
+          <div className="glass-chip mx-auto px-4 py-1.5 text-[10px] font-mono uppercase tracking-[0.3em] text-zinc-400">
             Sala {code}
           </div>
         )}
 
         <div className="flex flex-col items-center gap-2">
-          <div className="p-3 rounded-2xl bg-white/[0.06] ring-1 ring-white/10 text-zinc-300">
+          <div className="glass-icon-button rounded-2xl p-3 text-zinc-300">
             <Users className="w-6 h-6" />
           </div>
           <h2 className="text-xl font-bold text-zinc-50">Sala llena</h2>
@@ -836,7 +836,7 @@ function FullRoomPanel({
         </div>
 
         {queued ? (
-          <div className="flex flex-col items-center gap-3 p-5 rounded-2xl bg-white/[0.04] ring-1 ring-white/10">
+          <div className="glass flex flex-col items-center gap-3 rounded-2xl p-5">
             <Hourglass className="w-5 h-5 text-zinc-300 animate-pulse" />
             <p className="text-sm text-zinc-300">
               Estás en el puesto{" "}
@@ -848,7 +848,7 @@ function FullRoomPanel({
             <button
               type="button"
               onClick={onLeaveQueue}
-              className="mt-1 text-[11px] font-bold uppercase tracking-widest text-zinc-400 hover:text-zinc-200 transition"
+              className="glass-chip btn-press mt-1 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-300"
             >
               Salir de la fila
             </button>
@@ -865,7 +865,7 @@ function FullRoomPanel({
               type="button"
               disabled={!name.trim()}
               onClick={() => onJoinQueue(name.trim())}
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-white text-black font-bold text-sm uppercase tracking-widest hover:bg-zinc-200 disabled:opacity-40 transition btn-press"
+              className="glass-button glass-button-accent btn-press inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-bold uppercase tracking-[0.18em] disabled:opacity-40"
             >
               <Hourglass className="w-4 h-4" />
               Hacer fila
@@ -876,7 +876,7 @@ function FullRoomPanel({
         <button
           type="button"
           onClick={onSpectate}
-          className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-white/[0.05] hover:bg-white/[0.1] ring-1 ring-white/10 text-zinc-200 font-bold text-sm uppercase tracking-widest transition btn-press"
+          className="glass-button glass-button-ghost btn-press inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-bold uppercase tracking-[0.18em]"
         >
           <Eye className="w-4 h-4" />
           Observar la mesa

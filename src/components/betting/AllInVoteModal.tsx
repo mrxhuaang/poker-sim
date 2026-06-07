@@ -25,81 +25,94 @@ export function AllInVoteModal({ gameState, selfUid, onVote, open = false, onClo
   const seatsById = new Map(gameState.seats.map((s) => [s.id, s]));
 
   return (
-    <div className="fixed right-3 top-1/2 z-[110] -translate-y-1/2 pointer-events-none">
-      <div className="pointer-events-auto w-[min(300px,calc(100vw-1.5rem))] bg-zinc-900/95 backdrop-blur-xl rounded-2xl ring-1 ring-accent-400/40 shadow-[0_18px_70px_-24px_rgba(167,139,250,0.55)] p-3 flex flex-col gap-3 animate-in slide-in-from-right-4 fade-in duration-200 relative">
+    <div className="pointer-events-none fixed right-3 top-1/2 z-[110] -translate-y-1/2">
+      <div className="glass-panel pointer-events-auto relative flex w-[min(320px,calc(100vw-1.5rem))] flex-col gap-3 rounded-[28px] p-3.5 animate-in slide-in-from-right-4 fade-in duration-200">
         {onClose && (
           <button
             type="button"
             onClick={onClose}
-            className="absolute top-2.5 right-2.5 p-1.5 rounded-full text-zinc-500 hover:text-zinc-100 hover:bg-white/10 transition"
+            className="glass-icon-button btn-press absolute right-2.5 top-2.5 rounded-full p-1.5 text-zinc-400"
             aria-label="Cerrar"
           >
-            <X className="w-4 h-4" />
+            <X className="h-4 w-4" />
           </button>
         )}
 
         <div className="flex items-center gap-2 pr-8">
-          <Zap className="w-4 h-4 text-accent-400" />
+          <div className="glass-icon-button rounded-full p-1.5 text-accent-300">
+            <Zap className="h-3.5 w-3.5" />
+          </div>
           <span className="text-[10px] font-black uppercase tracking-[0.25em] text-accent-300">
             All-in
           </span>
         </div>
 
-        <h3 className="text-sm font-black text-white tracking-tight">
-          Correr el board
-        </h3>
+        <div className="space-y-1">
+          <h3 className="text-sm font-black tracking-tight text-white">Correr el board</h3>
+          <p className="text-[11px] leading-relaxed text-zinc-400">
+            Elige cuantas corridas quieres antes de cerrar la mano.
+          </p>
+        </div>
 
         {Object.keys(equity).length > 0 && (
-          <div className="grid gap-1.5">
-            {neg.playerIds.map((id) => (
-              <div key={id} className="flex items-center justify-between gap-2 text-[11px]">
-                <span className="min-w-0 truncate text-zinc-300">
-                  {seatsById.get(id)?.name ?? id}
-                </span>
-                <span className="font-mono font-black tabular-nums text-accent-200">
-                  {equity[id] ?? 0}%
-                </span>
-              </div>
-            ))}
+          <div className="glass rounded-2xl p-2.5">
+            <div className="mb-2 text-[9px] font-black uppercase tracking-[0.22em] text-zinc-500">
+              Equity
+            </div>
+            <div className="grid gap-1.5">
+              {neg.playerIds.map((id) => (
+                <div key={id} className="flex items-center justify-between gap-2 text-[11px]">
+                  <span className="min-w-0 truncate text-zinc-300">
+                    {seatsById.get(id)?.name ?? id}
+                  </span>
+                  <span className="font-mono font-black text-accent-200 tabular-nums">
+                    {equity[id] ?? 0}%
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
         {involved ? (
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-3 gap-2">
             {options.map((n) => (
               <button
                 key={n}
                 type="button"
                 onClick={() => onVote(n)}
-                className={`h-12 rounded-xl flex flex-col items-center justify-center font-black transition btn-press ${
+                className={`btn-press rounded-[20px] px-2 py-3 transition ${
                   myVote === n
-                    ? "bg-accent-700/80 text-accent-100 shadow-lg shadow-accent-700/30 ring-2 ring-accent-400"
-                    : "bg-white/5 text-zinc-200 hover:bg-white/10 ring-1 ring-white/10"
+                    ? "glass-button glass-button-accent shadow-[0_18px_44px_-28px_oklch(0.42_0.18_290_/_0.72)]"
+                    : "glass-button glass-button-ghost"
                 }`}
               >
-                <span className="text-base">{n}x</span>
-                <span className="text-[8px] uppercase tracking-widest opacity-70">
+                <span className="block text-base font-black text-inherit">{n}x</span>
+                <span className="block text-[8px] font-black uppercase tracking-[0.18em] opacity-70">
                   {n === 1 ? "Normal" : "Runs"}
                 </span>
               </button>
             ))}
           </div>
         ) : (
-          <div className="px-3 py-2 rounded-xl bg-white/5 ring-1 ring-white/10 text-xs text-zinc-400 text-center">
+          <div className="glass rounded-2xl px-3 py-2 text-center text-xs text-zinc-400">
             Solo los jugadores all-in pueden votar
           </div>
         )}
 
-        <div className="flex items-center gap-2">
-          <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+        <div className="glass rounded-2xl p-2.5">
+          <div className="mb-2 flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+            <span>Consenso</span>
+            <span className="font-mono text-zinc-400">
+              {neg.agreedN ? `${neg.agreedN}x` : `${totalVoted}/${total}`}
+            </span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
             <div
-              className="h-full bg-accent-400 transition-all"
+              className="h-full rounded-full bg-accent-400 transition-all"
               style={{ width: `${total > 0 ? (totalVoted / total) * 100 : 0}%` }}
             />
           </div>
-          <span className="text-[10px] tabular-nums font-bold text-zinc-500">
-            {neg.agreedN ? `${neg.agreedN}x` : `${totalVoted}/${total}`}
-          </span>
         </div>
       </div>
     </div>

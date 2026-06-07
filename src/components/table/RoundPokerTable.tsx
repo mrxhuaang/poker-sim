@@ -399,16 +399,16 @@ export function RoundPokerTable({
                 <button
                   type="button"
                   onClick={() => onSit!(i)}
-                  className="pointer-events-auto group flex flex-col items-center gap-1.5 cursor-pointer"
+                  className="pointer-events-auto group flex cursor-pointer flex-col items-center gap-1.5"
                 >
-                  <div className="w-12 h-12 rounded-full bg-zinc-900/60 ring-2 ring-dashed ring-white/15 group-hover:ring-accent/50 group-hover:bg-accent/10 backdrop-blur-sm transition flex items-center justify-center">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-accent">
+                  <div className="glass-icon-button flex h-12 w-12 items-center justify-center rounded-full border-dashed group-hover:border-accent/50 group-hover:text-accent">
+                    <span className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-500 group-hover:text-accent">
                       Sit
                     </span>
                   </div>
                 </button>
               ) : (
-                <div className="w-12 h-12 rounded-full bg-zinc-900/40 ring-1 ring-white/5 backdrop-blur-sm opacity-50" />
+                <div className="glass h-12 w-12 rounded-full opacity-50" />
               )}
             </div>
           );
@@ -529,10 +529,10 @@ export function RoundPokerTable({
                 <button
                   type="button"
                   onClick={onToggleAway}
-                  className={`absolute -right-7 sm:-right-8 top-1/2 -translate-y-1/2 z-20 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest transition btn-press ${
+                  className={`btn-press absolute -right-7 top-1/2 z-20 -translate-y-1/2 rounded-md px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.18em] sm:-right-8 ${
                     amSittingOut
-                      ? "bg-rose-500/80 text-white hover:bg-rose-400"
-                      : "bg-white/5 text-zinc-400 hover:bg-white/15 hover:text-zinc-100 ring-1 ring-white/10"
+                      ? "glass-button glass-button-danger"
+                      : "glass-button glass-button-ghost text-zinc-300"
                   }`}
                   title={amSittingOut ? "Volver a jugar" : "Ausentarme"}
                 >
@@ -651,7 +651,7 @@ export function RoundPokerTable({
       {/* Mute toggle */}
       <button
         onClick={toggleMute}
-        className="absolute top-1 right-9 p-2.5 rounded-lg glass hover:bg-white/10 transition text-zinc-500 hover:text-white z-50"
+        className="glass-icon-button btn-press absolute right-9 top-1 z-50 rounded-xl p-2.5 text-zinc-400"
         title={muted ? "Activar sonido" : "Silenciar"}
         aria-label={muted ? "Activar sonido" : "Silenciar"}
       >
@@ -662,7 +662,7 @@ export function RoundPokerTable({
       {roomCode && (
         <button
           onClick={() => setShowQR(true)}
-          className="absolute top-1 right-1 p-2.5 rounded-lg glass hover:bg-white/10 transition text-zinc-500 hover:text-white z-50"
+          className="glass-icon-button btn-press absolute right-1 top-1 z-50 rounded-xl p-2.5 text-zinc-400"
           title="Invitar"
           aria-label="Invitar jugadores"
         >
@@ -674,7 +674,7 @@ export function RoundPokerTable({
       {selfUid && seats.length > 0 && (
         <button
           onClick={rotateSelfToCenter}
-          className="absolute top-1 left-1 p-2.5 rounded-lg glass hover:bg-white/10 transition text-zinc-500 hover:text-white z-50"
+          className="glass-icon-button btn-press absolute left-1 top-1 z-50 rounded-xl p-2.5 text-zinc-400"
           title="Centrarme"
           aria-label="Centrarme en la mesa"
         >
@@ -685,10 +685,10 @@ export function RoundPokerTable({
       {/* QR Modal */}
       {showQR && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-zinc-900 rounded-3xl p-8 ring-1 ring-white/10 relative max-w-sm w-full shadow-2xl">
+          <div className="glass-panel relative w-full max-w-sm rounded-3xl p-8">
             <button
               onClick={() => setShowQR(false)}
-              className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/5 text-zinc-500 hover:text-white transition"
+              className="glass-icon-button btn-press absolute right-4 top-4 rounded-full p-2 text-zinc-400"
             >
               <X className="w-6 h-6" />
             </button>

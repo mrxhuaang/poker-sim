@@ -57,40 +57,39 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
     onAction(action, raiseAmount);
   }
 
-  // Quick bet presets — percentage of pot + Max (all-in)
   const presets = sliderOpt
     ? [
         { label: "33%", value: clamp(pot * 0.33) },
-        { label: "½", value: clamp(pot * 0.5) },
+        { label: "1/2", value: clamp(pot * 0.5) },
         { label: "75%", value: clamp(pot * 0.75) },
-        { label: "Bote", value: clamp(pot) },
+        { label: "Pot", value: clamp(pot) },
         { label: "Max", value: clamp(maxVal) },
       ].filter((p, i, arr) => p.value > 0 && arr.findIndex((q) => q.value === p.value) === i)
     : [];
 
   return (
-    <div className="flex flex-col gap-2 w-full">
+    <div className="flex w-full flex-col gap-2">
       {sliderOpt && (
         <div className="flex flex-col gap-2">
-          {/* Preset Buttons — compact */}
-          <div className="flex gap-1">
+          <div className="flex gap-1.5">
             {presets.map((p) => (
               <button
                 key={p.label}
                 type="button"
                 onClick={() => setRaiseAmount(Math.min(p.value, maxVal))}
-                className="flex-1 px-1 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.11] text-[9px] font-bold text-zinc-300 hover:text-zinc-100 transition ring-1 ring-white/10"
+                className="glass-button glass-button-ghost btn-press flex-1 rounded-xl px-2 py-1.5 text-[9px] font-black uppercase tracking-[0.18em]"
               >
                 {p.label}
               </button>
             ))}
           </div>
 
-          {/* Slider & Value Display — compact */}
-          <div className="flex flex-col gap-1.5 p-2 rounded-xl bg-white/[0.04] ring-1 ring-white/[0.08]">
+          <div className="glass-panel flex flex-col gap-2 rounded-[20px] p-3">
             <div className="flex items-center justify-between">
-              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Amount</span>
-              <span className="text-base font-black text-zinc-100 tabular-nums leading-none">
+              <span className="text-[9px] font-black uppercase tracking-[0.22em] text-zinc-500">
+                Amount
+              </span>
+              <span className="text-base font-black leading-none text-zinc-100 tabular-nums">
                 {formatChips(raiseAmount)}
               </span>
             </div>
@@ -101,20 +100,19 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
               step={betting.bigBlind > 0 ? betting.bigBlind : 1}
               value={raiseAmount}
               onChange={handleSlider}
-              className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-violet-400"
+              className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-white/10 accent-accent-400"
             />
           </div>
         </div>
       )}
 
-      {/* Main Action Buttons — slightly smaller */}
-      <div className="flex gap-1.5 h-11">
+      <div className="flex h-11 gap-1.5">
         {canFold && (
           <button
             type="button"
             disabled={disabled}
             onClick={() => onAction("fold")}
-            className="flex-1 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 hover:text-rose-200 text-xs font-black uppercase tracking-widest ring-1 ring-rose-400/20 hover:ring-rose-400/35 transition-all"
+            className="glass-button glass-button-danger btn-press flex-1 rounded-[18px] px-3 text-xs font-black uppercase tracking-[0.18em]"
           >
             Fold
           </button>
@@ -125,7 +123,7 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
             type="button"
             disabled={disabled}
             onClick={() => onAction(canCheck ? "check" : "call")}
-            className="flex-[2] rounded-xl bg-accent-500/15 hover:bg-accent-500/28 text-accent-100 text-xs font-black uppercase tracking-widest ring-1 ring-accent-400/30 hover:ring-accent-400/50 transition-all"
+            className="glass-button glass-button-accent btn-press flex-[2] rounded-[18px] px-3 text-xs font-black uppercase tracking-[0.18em]"
           >
             {canCheck ? "Check" : `Call ${formatChips(toCall)}`}
           </button>
@@ -136,7 +134,7 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
             type="button"
             disabled={disabled}
             onClick={handleBetRaise}
-            className="flex-[2] rounded-xl bg-accent-500/20 hover:bg-accent-500/35 text-accent-200 hover:text-accent-100 text-xs font-black uppercase tracking-widest ring-1 ring-accent-400/35 hover:ring-accent-400/55 transition-all"
+            className="glass-button glass-button-accent btn-press flex-[2] rounded-[18px] px-3 text-xs font-black uppercase tracking-[0.18em]"
           >
             {raiseOpt ? "Raise" : "Bet"}
           </button>
@@ -147,7 +145,7 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
             type="button"
             disabled={disabled}
             onClick={() => onAction("all-in")}
-            className="flex-[2] rounded-xl bg-accent-500/20 hover:bg-accent-500/35 text-accent-200 hover:text-accent-100 text-xs font-black uppercase tracking-widest ring-1 ring-accent-400/35 hover:ring-accent-400/55 transition-all"
+            className="glass-button glass-button-accent btn-press flex-[2] rounded-[18px] px-3 text-xs font-black uppercase tracking-[0.18em]"
           >
             All-in
           </button>

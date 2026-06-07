@@ -42,27 +42,23 @@ export function BettingDock({
 }: Props) {
   if (!seat && !name) return null;
 
-  // Hand strength label — shows hole-only label preflop, full best hand when community ≥ 3
-  const handLabel = holeCards
-    ? describeHand([...holeCards, ...community])
-    : null;
+  const handLabel = holeCards ? describeHand([...holeCards, ...community]) : null;
 
   return (
-    <div className="w-[min(360px,90vw)] bg-zinc-900/95 backdrop-blur-xl rounded-2xl ring-1 ring-white/10 p-2.5 shadow-2xl overflow-hidden relative">
+    <div className="glass-panel relative w-[min(360px,90vw)] overflow-hidden rounded-[28px] p-3">
       {isMyTurn && (
-        <div className="absolute inset-0 bg-accent/8 animate-pulse pointer-events-none" />
+        <div className="pointer-events-none absolute inset-0 animate-pulse bg-accent-500/8" />
       )}
 
-      {/* Player header — compact */}
-      <div className="flex items-center justify-between mb-1.5 relative z-10">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="relative z-10 mb-2 flex items-center justify-between">
+        <div className="flex min-w-0 items-center gap-2">
           <Avatar seed={seed} size={28} />
-          <div className="flex flex-col min-w-0">
-            <span className="text-[12px] font-black text-white uppercase tracking-tight truncate leading-tight">
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate text-[12px] font-black uppercase leading-tight tracking-tight text-white">
               {name}
             </span>
             {seat && (
-              <span className="text-[10px] text-accent font-mono font-bold leading-none">
+              <span className="font-mono text-[10px] font-bold leading-none text-accent">
                 {formatChips(seat.chips)}
               </span>
             )}
@@ -70,25 +66,27 @@ export function BettingDock({
         </div>
         {seat && seat.bet > 0 && (
           <div className="flex flex-col items-end leading-tight">
-            <span className="text-[8px] uppercase tracking-widest text-zinc-500 font-black leading-none">
+            <span className="text-[8px] font-black uppercase leading-none tracking-[0.18em] text-zinc-500">
               Apuesta
             </span>
-            <span className="text-[12px] font-black text-accent tabular-nums leading-tight">
+            <span className="text-[12px] font-black leading-tight text-accent tabular-nums">
               {formatChips(seat.bet)}
             </span>
           </div>
         )}
       </div>
 
-      {/* Hand strength label — compact inline */}
       {handLabel && holeCards && (
-        <div className="mb-1.5 px-2 py-1 rounded-lg bg-white/5 ring-1 ring-white/[0.06] flex items-center justify-between">
-          <span className="text-[9px] uppercase tracking-widest text-zinc-500 font-bold">Mano</span>
-          <span className="text-[11px] font-black text-accent tracking-tight truncate ml-2">{handLabel}</span>
+        <div className="glass mb-2 flex items-center justify-between rounded-2xl px-2.5 py-1.5">
+          <span className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-500">
+            Mano
+          </span>
+          <span className="ml-2 truncate text-[11px] font-black tracking-tight text-accent">
+            {handLabel}
+          </span>
         </div>
       )}
 
-      {/* Betting controls — only visible on my turn */}
       {seat && betting && isMyTurn && seat.status === "active" && !hasResult && (
         <div className="animate-in fade-in zoom-in duration-300">
           {seat.turnDeadline && (
@@ -101,28 +99,27 @@ export function BettingDock({
               />
             </div>
           )}
-          <BettingControls
-            seat={seat}
-            betting={betting}
-            onAction={onAction}
-          />
+          <BettingControls seat={seat} betting={betting} onAction={onAction} />
         </div>
       )}
 
-      {/* Timebank toggle — compact pill, bottom-right */}
       {seat && onToggleTimeBank && (
-        <div className="mt-1.5 flex items-center justify-end">
+        <div className="mt-2 flex items-center justify-end">
           <button
             type="button"
             onClick={onToggleTimeBank}
             title={useTimeBank ? "Desactivar timebank" : "Activar timebank"}
-            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ring-1 transition btn-press ${
+            className={`glass-chip btn-press inline-flex items-center gap-1 px-2 py-1 text-[9px] font-black uppercase tracking-[0.18em] ${
               useTimeBank
-                ? "bg-accent/12 text-accent ring-accent/30 hover:bg-accent/18"
-                : "bg-zinc-800 text-zinc-500 ring-white/10 hover:bg-zinc-700"
+                ? "glass-button-accent text-accent-100"
+                : "glass-button-ghost text-zinc-400"
             }`}
           >
-            {useTimeBank ? <Battery className="w-2.5 h-2.5" /> : <BatteryLow className="w-2.5 h-2.5" />}
+            {useTimeBank ? (
+              <Battery className="h-2.5 w-2.5" />
+            ) : (
+              <BatteryLow className="h-2.5 w-2.5" />
+            )}
             TB {useTimeBank ? "ON" : "OFF"}
           </button>
         </div>
