@@ -36,8 +36,11 @@ export type RunResult = {
   winners: GameWinner[];
 };
 
+export type ConnStatus = "connecting" | "reconnecting" | "connected" | "error";
+
 export type GameSocket = {
   connected: boolean;
+  status: ConnStatus;
   error: string | null;
   state: PublicState | null;
   hole: string[] | null;
@@ -47,7 +50,7 @@ export type GameSocket = {
 };
 
 export function useGameSocket(room: string | null, id: string, name = "", token?: string, spectator = false): GameSocket {
-  const [connected, setConnected] = useState(false);
+  const [status, setStatus] = useState<ConnStatus>("connecting");
   const [error, setError] = useState<string | null>(null);
   const [state, setState] = useState<PublicState | null>(null);
   const [hole, setHole] = useState<string[] | null>(null);
@@ -69,28 +72,45 @@ export function useGameSocket(room: string | null, id: string, name = "", token?
 
     let attempt = 0;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    let dead = false; // set on cleanup to stop reconnect loop
+    let dead = false;
 
     const connect = () => {
       if (dead) return;
-      const ws = new WebSocket(url);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        attempt = 0;
-        setConnected(true);
-      };
-
-      ws.onclose = () => {
-        setConnected(false);
+      setStatus(attempt === 0 ? "connecting" : "reconnecting");
+      let ws: WebSocket;
+      try {
+        ws = new WebSocket(url);
+      } catch {
+        // Bad URL scheme or similar — schedule retry without crashing.
         if (!dead) {
           const delay = Math.min(1000 * 2 ** attempt, 10_000);
           attempt++;
           timeoutId = setTimeout(connect, delay);
         }
+        return;
+      }
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        attempt = 0;
+        setStatus("connected");
       };
 
-      ws.onerror = () => setError("Error de conexión al servidor de juego");
+      ws.onclose = () => {
+        wsRef.current = null;
+        if (!dead) {
+          setStatus("reconnecting");
+          const delay = Math.min(1000 * 2 ** attempt, 10_000);
+          attempt++;
+          if (timeoutId) clearTimeout(timeoutId);
+          timeoutId = setTimeout(connect, delay);
+        }
+      };
+
+      ws.onerror = () => {
+        setError("Error de conexión al servidor de juego");
+        setStatus("error");
+      };
 
       ws.onmessage = (e) => {
         try {
@@ -113,7 +133,6 @@ export function useGameSocket(room: string | null, id: string, name = "", token?
       if (timeoutId) clearTimeout(timeoutId);
       wsRef.current?.close();
       wsRef.current = null;
-      setConnected(false);
     };
   }, [room, id, name, token, spectator]);
 
@@ -138,5 +157,5 @@ export function useGameSocket(room: string | null, id: string, name = "", token?
     [send],
   );
 
-  return { connected, error, state, hole, start, action, config };
+  return { connected: status === "connected", status, error, state, hole, start, action, config };
 }

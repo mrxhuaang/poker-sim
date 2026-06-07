@@ -39,7 +39,7 @@ function PlayOnlinePageInner() {
   const search = useSearchParams();
   const isSpectator = search.get("spectator") === "1";
 
-  const { connected, state, hole, uid, name, seed, error, start, action, config, token } =
+  const { connected, status, state, hole, uid, name, seed, error, start, action, config, token } =
     useServerGame(code, isSpectator);
   const chat = useChat(code);
   const configSent = useRef(false);
@@ -139,6 +139,7 @@ function PlayOnlinePageInner() {
         hole={hole}
         uid={uid}
         connected={connected}
+        status={status}
         spectator={isSpectator}
         onStart={start}
         onAction={action}
