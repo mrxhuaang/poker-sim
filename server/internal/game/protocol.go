@@ -54,6 +54,9 @@ type PublicState struct {
 	// in bust-out order (index 0 = first to bust out). Used for tournament
 	// finish rankings. Empty in cash-game mode.
 	BustedOrder []string `json:"bustedOrder,omitempty"`
+	// HandCategories maps each revealed seat ID to its hand category (0-8:
+	// high-card → straight-flush). Only present at showdown when Reveals is set.
+	HandCategories map[string]int `json:"handCategories,omitempty"`
 }
 
 type PublicSeat struct {

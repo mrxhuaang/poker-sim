@@ -9,11 +9,13 @@ package session
 
 import (
 	"encoding/json"
+	"log"
 	"sync"
 	"time"
 
 	"github.com/MrxHuaang/poker-sim/server/internal/game"
 	"github.com/MrxHuaang/poker-sim/server/internal/hub"
+	"github.com/MrxHuaang/poker-sim/server/internal/store"
 )
 
 const (
@@ -35,6 +37,7 @@ type Manager struct {
 	timers map[string]*roomTimer
 	blinds map[string]*time.Ticker // per-room blind escalation tickers
 	owners map[string]string       // room code -> uid allowed to start/configure
+	store  *store.SupabaseStore    // nil when SUPABASE_URL/SUPABASE_SERVICE_KEY unset
 }
 
 func NewManager(h *hub.Hub) *Manager {
@@ -44,6 +47,7 @@ func NewManager(h *hub.Hub) *Manager {
 		timers: make(map[string]*roomTimer),
 		blinds: make(map[string]*time.Ticker),
 		owners: make(map[string]string),
+		store:  store.New(),
 	}
 }
 
@@ -273,9 +277,17 @@ func (m *Manager) handleAction(code, id, action string, amount int) {
 		return
 	}
 	m.armTimerLocked(code, r)
+	atShowdown := r.Phase() == game.PhaseShowdown
 	pub := r.PublicMsg()
+	var rec *store.HandRecord
+	if atShowdown {
+		rec = m.buildRecord(code, r)
+	}
 	m.mu.Unlock()
 	m.broadcast(code, pub)
+	if rec != nil {
+		go m.persistHand(*rec)
+	}
 }
 
 // cancelTimerLocked stops and removes any active turn timer.
@@ -324,9 +336,17 @@ func (m *Manager) onTimeout(code, expectedUID string) {
 	_ = r.Action(expectedUID, action, 0)
 
 	m.armTimerLocked(code, r)
+	atShowdown := r.Phase() == game.PhaseShowdown
 	pub := r.PublicMsg()
+	var rec *store.HandRecord
+	if atShowdown {
+		rec = m.buildRecord(code, r)
+	}
 	m.mu.Unlock()
 	m.broadcast(code, pub)
+	if rec != nil {
+		go m.persistHand(*rec)
+	}
 }
 
 // resetBlindTicker cancels any existing blind ticker for the room and starts a
@@ -388,5 +408,54 @@ func (m *Manager) broadcast(code string, msg game.ServerMsg) {
 func (m *Manager) sendTo(c *hub.Client, msg game.ServerMsg) {
 	if b, err := json.Marshal(msg); err == nil {
 		m.hub.SendTo(c, b)
+	}
+}
+
+// buildRecord snapshots the room state into a HandRecord. Must be called with
+// m.mu held (reads room fields via exported getters).
+func (m *Manager) buildRecord(code string, r *game.Room) *store.HandRecord {
+	winners := r.Winners()
+	wrs := make([]store.WinnerRecord, len(winners))
+	for i, w := range winners {
+		wrs[i] = store.WinnerRecord{ID: w.ID, Amount: w.Amount}
+	}
+	clients := m.hub.Clients(code)
+	seatIDs := make([]string, 0, len(clients))
+	seen := make(map[string]bool)
+	for _, c := range clients {
+		if !c.Spectator && !seen[c.ID] {
+			seen[c.ID] = true
+			seatIDs = append(seatIDs, c.ID)
+		}
+	}
+	pub := r.PublicMsg()
+	// Extract board and reveals from the already-built public message.
+	// (Easier than duplicating the conversion logic.)
+	_ = pub // board and reveals are in r already via getters; use them directly.
+
+	// Board card IDs (from r.PublicMsg side-effect we won't re-encode — use getter).
+	boardCards := r.Board()
+	var reveals map[string][]string
+	if rv := r.Reveals(); len(rv) > 0 {
+		reveals = rv
+	}
+	return &store.HandRecord{
+		Room:       code,
+		HandNum:    r.HandNum(),
+		PlayedAt:   time.Now().UTC(),
+		Pot:        r.Pot(),
+		Community:  boardCards,
+		Winners:    wrs,
+		Reveals:    reveals,
+		Categories: r.HandCategories(),
+		SeatIDs:    seatIDs,
+		SeatNames:  r.SeatNames(),
+	}
+}
+
+// persistHand writes the record to the durable store. Called in a goroutine.
+func (m *Manager) persistHand(rec store.HandRecord) {
+	if err := m.store.RecordHand(rec); err != nil {
+		log.Printf("store: failed to persist hand %s#%d: %v", rec.Room, rec.HandNum, err)
 	}
 }
