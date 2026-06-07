@@ -283,9 +283,6 @@ function ActionCardFrame({
           <div className="rounded-xl bg-white/[0.06] p-2.5 text-zinc-200 ring-1 ring-white/15">
             {icon}
           </div>
-          <span className="rounded-full bg-accent-500/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-accent-300 ring-1 ring-accent-400/25">
-            Disponible
-          </span>
         </div>
         <div className="space-y-2">
           <h3 className="text-xl font-semibold tracking-tight text-primary">
@@ -342,13 +339,10 @@ function ModeCard({
         fillOpacity={0.4}
       >
         <div className="flex h-full flex-col gap-4 p-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center">
             <div className="rounded-xl bg-white/[0.06] p-2.5 text-zinc-200 ring-1 ring-white/15">
               {icon}
             </div>
-            <span className="rounded-full bg-white/[0.05] px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-secondary ring-1 ring-white/12">
-              Disponible
-            </span>
           </div>
           <div>
             <h3 className="text-xl font-semibold tracking-tight text-primary">

@@ -80,9 +80,6 @@ function ModeCard({
         <div className="flex h-full flex-col gap-4 p-6">
           <div className="flex items-center justify-between">
             <div className={`p-2.5 rounded-xl ring-1 ${a.iconBg}`}>{icon}</div>
-            <span className={`text-[10px] uppercase tracking-[0.2em] px-2 py-1 rounded-full ring-1 ${a.badge}`}>
-              Disponible
-            </span>
           </div>
           <div>
             <h3 className="text-xl text-primary font-semibold tracking-tight">{title}</h3>

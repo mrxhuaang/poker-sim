@@ -203,9 +203,6 @@ function ModeCard({
             <div className="p-2.5 rounded-xl ring-1 bg-white/[0.06] text-zinc-200 ring-white/15">
               {icon}
             </div>
-            <span className="text-[10px] uppercase tracking-[0.2em] px-2 py-1 rounded-full ring-1 bg-white/[0.05] text-secondary ring-white/12">
-              Disponible
-            </span>
           </div>
           <div>
             <h3 className="text-xl text-primary font-semibold tracking-tight">{title}</h3>
