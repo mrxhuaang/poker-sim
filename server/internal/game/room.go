@@ -48,6 +48,10 @@ type Room struct {
 
 	paused      bool     // true while owner has suspended play (tournament break)
 	bustedOrder []string // seat IDs in bust-out order (index 0 = first eliminated)
+
+	// handCategories maps each revealed seat ID to its best 5-card hand category
+	// (0 = high-card … 8 = straight-flush). Populated at showdown alongside reveals.
+	handCategories map[string]int
 }
 
 const defaultStartStack = 1000
@@ -166,6 +170,71 @@ func (r *Room) HandNum() int        { return r.handNum }
 func (r *Room) Phase() Phase        { return r.phase }
 func (r *Room) Winners() []Winner   { return append([]Winner(nil), r.winners...) }
 func (r *Room) Chips(id string) int { return r.chips[id] }
+
+// Pot returns the current pot total.
+func (r *Room) Pot() int {
+	if r.betting != nil {
+		return r.betting.Pot
+	}
+	return 0
+}
+
+// Board returns the community card IDs in dealt order.
+func (r *Room) Board() []string {
+	out := make([]string, len(r.board))
+	for i, c := range r.board {
+		out[i] = c.ID()
+	}
+	return out
+}
+
+// Reveals returns a copy of the revealed hole cards as card IDs (seatID -> [2]string).
+func (r *Room) Reveals() map[string][]string {
+	if len(r.reveals) == 0 {
+		return nil
+	}
+	out := make(map[string][]string, len(r.reveals))
+	for id, h := range r.reveals {
+		out[id] = []string{h[0].ID(), h[1].ID()}
+	}
+	return out
+}
+
+// HandCategories returns a copy of the hand-category map populated at showdown.
+func (r *Room) HandCategories() map[string]int {
+	if len(r.handCategories) == 0 {
+		return nil
+	}
+	out := make(map[string]int, len(r.handCategories))
+	for k, v := range r.handCategories {
+		out[k] = v
+	}
+	return out
+}
+
+// SeatNames returns a copy of the id→name map.
+func (r *Room) SeatNames() map[string]string {
+	out := make(map[string]string, len(r.names))
+	for k, v := range r.names {
+		out[k] = v
+	}
+	return out
+}
+
+// computeHandCategories evaluates the best 5-card hand for every seat whose
+// hole cards are in r.reveals, using board. Requires exactly 5 board cards;
+// if the board is shorter (shouldn't happen at showdown) it's a no-op.
+func (r *Room) computeHandCategories(board []poker.Card) {
+	if len(board) < 5 {
+		return
+	}
+	b := [5]poker.Card{board[0], board[1], board[2], board[3], board[4]}
+	r.handCategories = make(map[string]int, len(r.reveals))
+	for id, h := range r.reveals {
+		score := poker.Best7([7]poker.Card{h[0], h[1], b[0], b[1], b[2], b[3], b[4]})
+		r.handCategories[id] = int(score >> 20)
+	}
+}
 
 // ToAct returns the ID of the player whose turn it is, or "" when no active
 // betting or when the hand is in showdown/idle.
@@ -395,6 +464,7 @@ func (r *Room) settleRunItN() {
 			r.reveals[s.ID] = h
 		}
 	}
+	r.computeHandCategories(r.board)
 	r.applyWinnings()
 	r.phase = PhaseShowdown
 }
@@ -411,6 +481,7 @@ func (r *Room) settleShowdown() {
 			r.reveals[s.ID] = h
 		}
 	}
+	r.computeHandCategories(r.board)
 	r.applyWinnings()
 	r.phase = PhaseShowdown
 }
@@ -456,6 +527,7 @@ func (r *Room) PublicMsg() ServerMsg {
 		Pot: pot, ToAct: toAct, Deadline: r.deadline, Seats: seats,
 		Winners: r.winners, Reveals: reveals, Runs: r.runs,
 		SB: r.sb, BB: r.bb, Paused: r.paused, BustedOrder: bustedOrder,
+		HandCategories: r.HandCategories(),
 	})
 	return msg
 }

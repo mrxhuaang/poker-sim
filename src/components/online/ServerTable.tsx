@@ -11,6 +11,8 @@ import { PlayingCard } from "@/components/cards/PlayingCard";
 import { OnlineBettingControls } from "@/components/online/OnlineBettingControls";
 import { OnlineTurnTimer } from "@/components/online/OnlineTurnTimer";
 import type { ConnStatus, PublicState, RunResult } from "@/hooks/useGameSocket";
+import type { OnlineHandRecord } from "@/hooks/useOnlineHistory";
+import { categoryLabel } from "@/hooks/useOnlineHistory";
 
 // ---------------------------------------------------------------------------
 // Small reusable pieces
@@ -121,6 +123,7 @@ export function ServerTable({
   connected,
   status = connected ? "connected" : "connecting",
   spectator = false,
+  history = [],
   onStart,
   onAction,
   onPause,
@@ -132,6 +135,7 @@ export function ServerTable({
   connected: boolean;
   status?: ConnStatus;
   spectator?: boolean;
+  history?: OnlineHandRecord[];
   onStart: () => void;
   onAction: (action: string, amount?: number) => void;
   onPause?: () => void;
@@ -219,6 +223,11 @@ export function ServerTable({
           {/* Run-it boards */}
           {state?.runs && state.runs.length > 1 && (
             <RunBoards runs={state.runs} nameOf={nameOf} />
+          )}
+
+          {/* Hand history */}
+          {history.length > 0 && (
+            <HandHistoryPanel records={history} nameOf={nameOf} />
           )}
         </div>
 
@@ -315,6 +324,60 @@ export function ServerTable({
             />
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Hand history panel (last 50 hands from Supabase)
+// ---------------------------------------------------------------------------
+
+function HandHistoryPanel({
+  records,
+  nameOf,
+}: {
+  records: OnlineHandRecord[];
+  nameOf: (id: string) => string;
+}) {
+  const shown = records.slice(0, 10);
+  return (
+    <div className="rounded-2xl bg-white/[0.02] ring-1 ring-white/[0.05] px-3 py-2 flex flex-col gap-2">
+      <span className="text-[9px] uppercase tracking-widest font-black text-zinc-500">
+        Historial ({records.length})
+      </span>
+      <div className="flex flex-col gap-1">
+        {shown.map((r) => {
+          const winnerNames = (r.winners ?? [])
+            .map((w) => {
+              const name = r.seat_names?.[w.id] ?? nameOf(w.id);
+              return `${name} +${formatChips(w.amount)}`;
+            })
+            .join(" · ");
+          const cats = r.categories
+            ? Object.values(r.categories)
+                .map((c) => categoryLabel(c))
+                .filter((v, i, a) => a.indexOf(v) === i)
+                .join(", ")
+            : null;
+          return (
+            <div
+              key={r.id}
+              className="flex items-center justify-between gap-2 text-[10px]"
+            >
+              <span className="text-zinc-500 tabular-nums shrink-0">
+                #{r.hand_num}
+              </span>
+              <span className="text-zinc-300 truncate flex-1">{winnerNames}</span>
+              {cats && (
+                <span className="text-zinc-600 shrink-0">{cats}</span>
+              )}
+              <span className="text-zinc-600 tabular-nums shrink-0">
+                {formatChips(r.pot)}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

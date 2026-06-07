@@ -17,6 +17,7 @@ import { ChatPanel } from "@/components/chat/ChatPanel";
 import { useChat } from "@/hooks/useChat";
 import { callEconomy } from "@/lib/economyClient";
 import { writeOnlineHandRecord } from "@/lib/handHistory";
+import { useOnlineHistory } from "@/hooks/useOnlineHistory";
 import type { Category } from "@/lib/handEval";
 
 const VoicePanel = dynamic(() => import("@/components/voice/VoicePanel"), {
@@ -43,6 +44,10 @@ function PlayOnlinePageInner() {
     useServerGame(code, isSpectator);
   const chat = useChat(code);
   const configSent = useRef(false);
+
+  // History from Supabase — re-fetches when a new showdown completes.
+  const showdownKey = state?.phase === "showdown" ? state.handNum : 0;
+  const { records: history } = useOnlineHistory(code, showdownKey);
 
   // Apply room config (blinds/stack/run-it/blind-level) once on connect.
   // Only the creator's link carries these params; plain join links use defaults.
@@ -141,6 +146,7 @@ function PlayOnlinePageInner() {
         connected={connected}
         status={status}
         spectator={isSpectator}
+        history={history}
         onStart={start}
         onAction={action}
         onPause={pause}
