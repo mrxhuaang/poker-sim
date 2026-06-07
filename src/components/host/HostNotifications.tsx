@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Coins, RefreshCw, Trophy, Zap, UserX, X } from "lucide-react";
+import { playJoinRequest } from "@/lib/sound";
 import type { StackRequest } from "@/lib/stackRequests";
 import type { NormalGameState, NormalSeat } from "@/lib/betting";
 import { formatChips } from "@/lib/betting";
@@ -63,6 +64,7 @@ export function HostNotifications({
         title: r.type === "rebuy" ? "Rebuy solicitado" : "Nueva solicitud",
         body: `${r.name} pide ${formatChips(r.requestedStack)}`,
       });
+      playJoinRequest();
     }
     // Clear seen for resolved so future rebuys can re-notify
     const stillPending = new Set(pending.map((p) => `${p.uid}-${p.ts}-${p.type}`));

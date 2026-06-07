@@ -80,3 +80,12 @@ export function playWinner(): void {
     tone(c, { freq: f, duration: 0.18, type: "triangle", gain: 0.16, startAt: i * 0.09 }),
   );
 }
+
+export function playJoinRequest(): void {
+  if (muted) return;
+  const c = getCtx();
+  if (!c) return;
+  // Two ascending sine tones — rising fourth, like a doorbell ping.
+  tone(c, { freq: 587.33, duration: 0.22, type: "sine", gain: 0.14 });
+  tone(c, { freq: 783.99, duration: 0.22, type: "sine", gain: 0.12, startAt: 0.16 });
+}
