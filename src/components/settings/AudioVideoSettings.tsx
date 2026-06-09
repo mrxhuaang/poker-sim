@@ -6,8 +6,8 @@ import { useMicDevice } from "@/hooks/useMicDevice";
 import { useAudioDevices } from "@/hooks/useAudioDevices";
 import { useAudioLevel } from "@/hooks/useAudioLevel";
 
-// Sound (mute + master volume) and — on phones — microphone selection for the
-// P2P voice chat. `showMic` is false on the TV host (it never joins voice).
+// Sound (mute + master volume) and microphone selection for P2P voice chat.
+// `showMic` is only enabled for clients that can join the voice room.
 export function AudioVideoSettings({ showMic = false }: { showMic?: boolean }) {
   const { muted, toggleMute, volume, setVolume } = useSound();
   const { micDeviceId, setMicDeviceId } = useMicDevice();

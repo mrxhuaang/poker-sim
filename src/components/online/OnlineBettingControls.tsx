@@ -65,7 +65,7 @@ export function OnlineBettingControls({
   const canSizeAction = myChips > toCall && minBet <= maxBet;
 
   // Stable key: resets raise amount on new hand / new betting round.
-  const amountKey = `${state.handNum}-${currentBet}-${myChips}-${mySeat.bet}`;
+  const amountKey = `${state.handNum}-${currentBet}-${myChips}-${myBet}`;
   const initAmt = clampInt(minBet, minBet, maxBet);
   const [draft, setDraft] = useState<{ key: string; value: number }>({
     key: amountKey,

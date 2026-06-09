@@ -86,6 +86,10 @@ export function HostSettings(props: Props) {
   for (const p of props.lobby) nameById[p.uid] = p.name;
   for (const s of props.gameSeats ?? []) nameById[s.id] = s.name;
   const pendingCount = props.requests.filter((r) => r.status === "pending").length;
+  const hostIsPlayer = props.selfUid
+    ? props.lobby.some((p) => p.uid === props.selfUid) ||
+      (props.gameSeats ?? []).some((s) => s.id === props.selfUid)
+    : false;
   const canShare = typeof navigator !== "undefined" && "share" in navigator;
 
   function copy(text: string, mark: (v: boolean) => void) {
@@ -285,9 +289,9 @@ export function HostSettings(props: Props) {
     },
     {
       id: "audio",
-      label: "Audio",
+      label: hostIsPlayer ? "Audio/Video" : "Audio",
       icon: <Volume2 className="w-3.5 h-3.5" />,
-      content: <AudioVideoSettings showMic={false} />,
+      content: <AudioVideoSettings showMic={hostIsPlayer} />,
     },
   ];
 
