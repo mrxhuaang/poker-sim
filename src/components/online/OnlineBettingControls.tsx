@@ -42,13 +42,10 @@ export function OnlineBettingControls({
   onAction: (action: string, amount?: number) => void;
 }) {
   const mySeat = state.seats.find((s) => s.id === uid);
-  if (!mySeat || mySeat.status === "folded" || mySeat.status === "all-in") {
-    return null;
-  }
-
   const currentBet = state.seats.reduce((m, s) => Math.max(m, s.bet), 0);
-  const toCall = Math.max(0, currentBet - mySeat.bet);
-  const myChips = mySeat.chips;
+  const myBet = mySeat?.bet ?? 0;
+  const toCall = Math.max(0, currentBet - myBet);
+  const myChips = mySeat?.chips ?? 0;
   const pot = state.pot;
   const bb = state.bb ?? 10;
   const isReRaise = currentBet > 0;
@@ -78,6 +75,10 @@ export function OnlineBettingControls({
     draft.key === amountKey ? clampInt(draft.value, minBet, maxBet) : initAmt;
   const setRaiseAmt = (v: number) =>
     setDraft({ key: amountKey, value: clampInt(v, minBet, maxBet) });
+
+  if (!mySeat || mySeat.status === "folded" || mySeat.status === "all-in") {
+    return null;
+  }
 
   const presets = canSizeAction
     ? buildPresets(pot, toCall, minBet, maxBet)

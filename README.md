@@ -135,6 +135,16 @@ cd engine
 wasm-pack build --target web --out-dir pkg
 ```
 
+### Verificacion rapida
+
+Para confirmar que el repo sigue sano tras un cambio chico:
+
+```bash
+npm run lint
+npm test
+cd server && go build ./cmd/server
+```
+
 ### Smoke test
 
 1. Ejecuta `npm run dev`.
