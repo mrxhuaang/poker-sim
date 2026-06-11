@@ -69,6 +69,7 @@ function PlayOnlinePageInner() {
     return Number(search.get("sb")) > 0 || Number(search.get("stack")) > 0;
   });
   const [showLoginCta, setShowLoginCta] = useState(false);
+  const [seatOverlayDismissed, setSeatOverlayDismissed] = useState(false);
 
   // Conexión: jugador solo con intención + cuenta real; si no, espectador.
   const asSpectator = urlSpectator || !wantSeat || isGuest;
@@ -277,9 +278,10 @@ function PlayOnlinePageInner() {
       )}
 
       {/* Observador: ve la mesa y decide. Sentarse / hacer fila / seguir mirando. */}
-      {state && !urlSpectator && !amSeated && !inQueue && !wantSeat && (
+      {/* Show when: not yet seated AND (hasn't asked to sit, OR is a guest who can't sit). */}
+      {state && !urlSpectator && !amSeated && !inQueue && (!wantSeat || isGuest) && !seatOverlayDismissed && (
         <div className="glass-panel flex flex-col items-center gap-3 rounded-[28px] px-6 py-5">
-          {showLoginCta && isGuest ? (
+          {isGuest ? (
             <>
               <UserRound className="w-6 h-6 text-accent-400" />
               <p className="text-sm text-zinc-300 text-center max-w-[260px]">
@@ -295,7 +297,7 @@ function PlayOnlinePageInner() {
                 </Link>
                 <button
                   type="button"
-                  onClick={() => setShowLoginCta(false)}
+                  onClick={() => setSeatOverlayDismissed(true)}
                   className="px-4 py-2 rounded-xl bg-white/5 ring-1 ring-white/10 text-zinc-300 font-bold text-sm btn-press"
                 >
                   Seguir mirando
