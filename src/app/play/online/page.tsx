@@ -58,7 +58,7 @@ function OnlineLandingPageInner() {
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-zinc-100">
             Nueva mesa
           </h1>
-          <p className="text-sm text-zinc-500 leading-relaxed">
+          <p className="text-sm text-zinc-300 leading-relaxed">
             Configura y crea tu sala. Comparte el código con tus jugadores.
           </p>
         </div>
@@ -82,7 +82,7 @@ function OnlineLandingPageInner() {
                 ["Stack inicial", stack, setStack],
               ] as const).map(([label, val, set]) => (
                 <label key={label} className="flex flex-col gap-1.5">
-                  <span className="text-[9px] uppercase tracking-widest text-zinc-500 font-black">
+                  <span className="text-[9px] uppercase tracking-widest text-zinc-400 font-black">
                     {label}
                   </span>
                   <input
@@ -97,7 +97,7 @@ function OnlineLandingPageInner() {
 
             <div className="grid grid-cols-2 gap-3">
               <label className="flex flex-col gap-1.5">
-                <span className="text-[9px] uppercase tracking-widest text-zinc-500 font-black">
+                <span className="text-[9px] uppercase tracking-widest text-zinc-400 font-black">
                   Run it
                 </span>
                 <select
@@ -111,7 +111,7 @@ function OnlineLandingPageInner() {
                 </select>
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className="text-[9px] uppercase tracking-widest text-zinc-500 font-black">
+                <span className="text-[9px] uppercase tracking-widest text-zinc-400 font-black">
                   Subir ciegas
                 </span>
                 <select
@@ -137,7 +137,7 @@ function OnlineLandingPageInner() {
           </div>
         </BorderGlow>
 
-        <p className="text-center text-xs text-zinc-600 px-1">
+        <p className="text-center text-xs text-zinc-400 px-1">
           Para unirte a una sala existente, ve al{" "}
           <a href="/lobby" className="text-zinc-400 hover:text-zinc-200 transition underline underline-offset-2">
             lobby
