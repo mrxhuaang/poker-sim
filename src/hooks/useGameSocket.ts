@@ -115,6 +115,7 @@ export function useGameSocket(
 
     const connect = async () => {
       if (dead) return;
+      setError(null);
       setStatus(attempt === 0 ? "connecting" : "reconnecting");
 
       // Resolve the auth token per attempt (fresh token on reconnect).
@@ -156,8 +157,8 @@ export function useGameSocket(
       };
 
       ws.onerror = () => {
-        setError("Error de conexión al servidor de juego");
-        setStatus("error");
+        // onclose fires right after — let it drive the retry cycle.
+        // Avoid setting permanent "error" status here; the socket will keep retrying.
       };
 
       ws.onmessage = (e) => {

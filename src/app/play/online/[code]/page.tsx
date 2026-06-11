@@ -270,7 +270,9 @@ function PlayOnlinePageInner() {
       {!state && (
         <div className="glass-panel flex items-center gap-3 rounded-[24px] px-6 py-4 text-zinc-400 text-sm">
           <RefreshCw className="w-4 h-4 motion-safe:animate-spin" />
-          {error ?? (status === "error" ? "Sin conexión con el servidor" : "Conectando con el servidor…")}
+          {status === "reconnecting"
+            ? "Iniciando servidor… puede tardar hasta 60 s"
+            : error ?? "Conectando con el servidor…"}
         </div>
       )}
 
