@@ -44,7 +44,7 @@ function OnlineLandingPageInner() {
   };
 
   return (
-    <main className="relative z-[2] min-h-screen flex items-center justify-center p-6">
+    <div className="min-h-screen flex items-center justify-center p-6">
       <div className="w-[min(460px,94vw)] flex flex-col gap-6">
         <div className="flex flex-col gap-1 px-1">
           <div className="flex items-center gap-2.5 mb-1">
@@ -145,6 +145,6 @@ function OnlineLandingPageInner() {
           {" "}o introduce el código directamente en la URL.
         </p>
       </div>
-    </main>
+    </div>
   );
 }
