@@ -74,6 +74,9 @@ type PublicState struct {
 	// HandCategories maps each revealed seat ID to its hand category (0-8:
 	// high-card → straight-flush). Only present at showdown when Reveals is set.
 	HandCategories map[string]int `json:"handCategories,omitempty"`
+	// Casual is true for no-coin rooms: free rebuys, guests can sit, the
+	// client skips buy-in / cash-out economy calls entirely.
+	Casual bool `json:"casual,omitempty"`
 }
 
 type PublicSeat struct {

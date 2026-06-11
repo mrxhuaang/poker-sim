@@ -54,8 +54,9 @@ type Room struct {
 	deadline   int64 // Unix ms when the active actor's turn expires (0 = none)
 
 	// config
-	runItN         int // how many times to run out the board on all-in (1–3)
-	blindLevelSecs int // >0: escalate blinds this often (tournaments)
+	runItN         int  // how many times to run out the board on all-in (1–3)
+	blindLevelSecs int  // >0: escalate blinds this often (tournaments)
+	casual         bool // true → no-coin mode: free rebuys, guests can sit, no buy-in tracked
 
 	paused      bool     // true while owner has suspended play (tournament break)
 	bustedOrder []string // seat IDs in bust-out order (index 0 = first eliminated)
@@ -84,9 +85,13 @@ func NewRoom(smallBlind, bigBlind int) *Room {
 	}
 }
 
-// SetConfig sets blinds, starting stack, run-it-N count, and blind escalation
-// interval for future hands (fields <= 0 are ignored).
-func (r *Room) SetConfig(sb, bb, stack, runItN, blindLevelSecs int) {
+// Casual reports whether this room is in no-coin casual mode.
+func (r *Room) Casual() bool { return r.casual }
+
+// SetConfig sets blinds, starting stack, run-it-N count, blind escalation
+// interval, and economy mode for future hands (numeric fields <= 0 are ignored).
+func (r *Room) SetConfig(sb, bb, stack, runItN, blindLevelSecs int, casual bool) {
+	r.casual = casual
 	if sb > 0 {
 		r.sb = sb
 	}
@@ -660,6 +665,7 @@ func (r *Room) PublicMsg() ServerMsg {
 		Dealer: r.dealerID, Owner: r.owner, LastAction: r.lastAction,
 		Paused: r.paused, BustedOrder: bustedOrder, Waiting: r.Waiting(),
 		HandCategories: r.HandCategories(),
+		Casual: r.casual,
 	})
 	return msg
 }

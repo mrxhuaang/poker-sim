@@ -156,11 +156,12 @@ type actionPayload struct {
 }
 
 type configPayload struct {
-	SB             int `json:"sb"`
-	BB             int `json:"bb"`
-	Stack          int `json:"stack"`
-	RunItN         int `json:"runItN"`
-	BlindLevelSecs int `json:"blindLevelSecs"`
+	SB             int  `json:"sb"`
+	BB             int  `json:"bb"`
+	Stack          int  `json:"stack"`
+	RunItN         int  `json:"runItN"`
+	BlindLevelSecs int  `json:"blindLevelSecs"`
+	Casual         bool `json:"casual"`
 }
 
 func (m *Manager) OnMessage(c *hub.Client, data []byte) {
@@ -230,11 +231,23 @@ func (m *Manager) isOwner(code, id string) bool {
 func (m *Manager) handleConfig(code string, p configPayload) {
 	m.mu.Lock()
 	r := m.roomLocked(code)
-	r.SetConfig(p.SB, p.BB, p.Stack, p.RunItN, p.BlindLevelSecs)
+	r.SetConfig(p.SB, p.BB, p.Stack, p.RunItN, p.BlindLevelSecs, p.Casual)
 	m.resetBlindTickerLocked(code, r)
 	pub := r.PublicMsg()
 	m.mu.Unlock()
 	m.broadcast(code, pub)
+}
+
+// IsCasual reports whether the given room is in no-coin casual mode.
+// Returns false when the room does not exist.
+func (m *Manager) IsCasual(code string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	r, ok := m.games[code]
+	if !ok {
+		return false
+	}
+	return r.Casual()
 }
 
 func (m *Manager) handleStart(code string) {

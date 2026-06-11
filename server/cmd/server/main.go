@@ -54,12 +54,22 @@ func main() {
 	mgr := session.NewManager(h)
 	mux.HandleFunc("/ws", h.Handler(authFn, mgr.OnJoin, mgr.OnLeave, mgr.OnMessage))
 
-	// Room list: returns all active rooms with player count. Used by the lobby UI.
+	// Room list: returns all active rooms with player count and economy mode.
 	// CORS is restricted to the configured origins (or any origin in dev).
 	mux.HandleFunc("/rooms", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		setCORS(w, r, h.AllowedOrigins)
-		_ = json.NewEncoder(w).Encode(h.RoomsSnapshot())
+		type roomEntry struct {
+			Code    string `json:"code"`
+			Players int    `json:"players"`
+			Casual  bool   `json:"casual,omitempty"`
+		}
+		snapshot := h.RoomsSnapshot()
+		out := make([]roomEntry, len(snapshot))
+		for i, s := range snapshot {
+			out[i] = roomEntry{Code: s.Code, Players: s.Players, Casual: mgr.IsCasual(s.Code)}
+		}
+		_ = json.NewEncoder(w).Encode(out)
 	})
 
 	// Live stacks for one room: the authority the economy backend reads at
