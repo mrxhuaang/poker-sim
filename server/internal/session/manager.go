@@ -22,6 +22,11 @@ const (
 	defaultSB   = 5
 	defaultBB   = 10
 	turnTimeout = 30 * time.Second
+	// teardownGrace is how long an empty room keeps its state (stacks, hand
+	// number, config) before being dropped. Long enough for the leaver's
+	// cash-out request to read /stacks and for a brief everyone's-wifi-blip,
+	// short enough that abandoned rooms don't accumulate.
+	teardownGrace = 2 * time.Minute
 )
 
 // roomTimer tracks the active turn timer for a room.
@@ -30,48 +35,104 @@ type roomTimer struct {
 	forUID string
 }
 
+// blindTicker escalates blinds on an interval; stop terminates its goroutine.
+type blindTicker struct {
+	ticker *time.Ticker
+	stop   chan struct{}
+}
+
 type Manager struct {
-	hub    *hub.Hub
-	mu     sync.Mutex
-	games  map[string]*game.Room
-	timers map[string]*roomTimer
-	blinds map[string]*time.Ticker // per-room blind escalation tickers
-	owners map[string]string       // room code -> uid allowed to start/configure
-	store  *store.SupabaseStore    // nil when SUPABASE_URL/SUPABASE_SERVICE_KEY unset
+	hub      *hub.Hub
+	mu       sync.Mutex
+	games    map[string]*game.Room
+	timers   map[string]*roomTimer
+	blinds   map[string]*blindTicker // per-room blind escalation tickers
+	owners   map[string]string       // room code -> uid allowed to start/configure
+	cleanups map[string]*time.Timer  // per-room delayed teardown when emptied
+	store    *store.SupabaseStore    // nil when SUPABASE_URL/SUPABASE_SERVICE_KEY unset
 }
 
 func NewManager(h *hub.Hub) *Manager {
 	return &Manager{
-		hub:    h,
-		games:  make(map[string]*game.Room),
-		timers: make(map[string]*roomTimer),
-		blinds: make(map[string]*time.Ticker),
-		owners: make(map[string]string),
-		store:  store.New(),
+		hub:      h,
+		games:    make(map[string]*game.Room),
+		timers:   make(map[string]*roomTimer),
+		blinds:   make(map[string]*blindTicker),
+		owners:   make(map[string]string),
+		cleanups: make(map[string]*time.Timer),
+		store:    store.New(),
 	}
 }
 
-// isOwner reports whether id may start/configure the room. The owner is the
-// first non-spectator to join; if a room has no owner (e.g. it was just
-// vacated) the next request is allowed and re-establishes control.
-func (m *Manager) isOwner(code, id string) bool {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+// isOwnerLocked reports whether id may start/configure the room, claiming
+// ownership when the room has none (e.g. it was just vacated). Must be called
+// with m.mu held.
+func (m *Manager) isOwnerLocked(code, id string) bool {
 	owner := m.owners[code]
-	return owner == "" || owner == id
+	if owner == "" {
+		m.owners[code] = id
+		m.syncOwnerLocked(code)
+		return true
+	}
+	return owner == id
 }
 
 // reassignOwnerLocked picks a new owner when the current one leaves: the first
 // remaining non-spectator client, or none. Must be called with m.mu held.
 func (m *Manager) reassignOwnerLocked(code, leavingID string) {
+	delete(m.owners, code)
 	for _, c := range m.hub.Clients(code) {
 		if c.Spectator || c.ID == leavingID {
 			continue
 		}
 		m.owners[code] = c.ID
-		return
+		break
 	}
-	delete(m.owners, code)
+	m.syncOwnerLocked(code)
+}
+
+// syncOwnerLocked mirrors the owner uid into the room so it is published in
+// PublicState (clients show start/pause controls only to the owner). Must be
+// called with m.mu held.
+func (m *Manager) syncOwnerLocked(code string) {
+	if r := m.games[code]; r != nil {
+		r.SetOwner(m.owners[code])
+	}
+}
+
+// roomLocked returns the room for code, creating it lazily so that joiners
+// receive a state snapshot even before the owner configures or deals. Must be
+// called with m.mu held.
+func (m *Manager) roomLocked(code string) *game.Room {
+	r := m.games[code]
+	if r == nil {
+		r = game.NewRoom(defaultSB, defaultBB)
+		m.games[code] = r
+		m.syncOwnerLocked(code)
+	}
+	return r
+}
+
+// connectedPlayerIDs returns the de-duplicated non-spectator client ids in the
+// room (a player with two open tabs shares one seat, never two).
+func (m *Manager) connectedPlayerIDs(code string) []string {
+	clients := m.hub.Clients(code)
+	ids := make([]string, 0, len(clients))
+	seen := make(map[string]bool, len(clients))
+	for _, c := range clients {
+		if c.Spectator || seen[c.ID] {
+			continue
+		}
+		seen[c.ID] = true
+		ids = append(ids, c.ID)
+	}
+	return ids
+}
+
+// betweenHands reports whether no hand is currently live (roster changes are safe).
+func betweenHands(r *game.Room) bool {
+	ph := r.Phase()
+	return ph == game.PhaseIdle || ph == game.PhaseShowdown
 }
 
 type actionPayload struct {
@@ -97,7 +158,10 @@ func (m *Manager) OnMessage(c *hub.Client, data []byte) {
 		if c.Spectator {
 			return // spectators observe only
 		}
-		if !m.isOwner(c.Room, c.ID) {
+		m.mu.Lock()
+		allowed := m.isOwnerLocked(c.Room, c.ID)
+		m.mu.Unlock()
+		if !allowed {
 			return // only the room owner deals/starts hands
 		}
 		m.handleStart(c.Room)
@@ -117,7 +181,10 @@ func (m *Manager) OnMessage(c *hub.Client, data []byte) {
 		if c.Spectator {
 			return
 		}
-		if !m.isOwner(c.Room, c.ID) {
+		m.mu.Lock()
+		allowed := m.isOwnerLocked(c.Room, c.ID)
+		m.mu.Unlock()
+		if !allowed {
 			return // only the room owner reconfigures the table
 		}
 		var p configPayload
@@ -138,15 +205,18 @@ func (m *Manager) OnMessage(c *hub.Client, data []byte) {
 	}
 }
 
+// isOwner is the lock-acquiring wrapper around isOwnerLocked.
+func (m *Manager) isOwner(code, id string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.isOwnerLocked(code, id)
+}
+
 func (m *Manager) handleConfig(code string, p configPayload) {
 	m.mu.Lock()
-	r := m.games[code]
-	if r == nil {
-		r = game.NewRoom(defaultSB, defaultBB)
-		m.games[code] = r
-	}
+	r := m.roomLocked(code)
 	r.SetConfig(p.SB, p.BB, p.Stack, p.RunItN, p.BlindLevelSecs)
-	m.resetBlindTicker(code, r)
+	m.resetBlindTickerLocked(code, r)
 	pub := r.PublicMsg()
 	m.mu.Unlock()
 	m.broadcast(code, pub)
@@ -154,24 +224,10 @@ func (m *Manager) handleConfig(code string, p configPayload) {
 
 func (m *Manager) handleStart(code string) {
 	clients := m.hub.Clients(code)
-	ids := make([]string, 0, len(clients))
-	seen := make(map[string]bool, len(clients))
-	for _, c := range clients {
-		// Skip spectators and de-duplicate uids: a player with two open tabs
-		// shares one seat, never two (which would corrupt the betting roster).
-		if c.Spectator || seen[c.ID] {
-			continue
-		}
-		seen[c.ID] = true
-		ids = append(ids, c.ID)
-	}
+	ids := m.connectedPlayerIDs(code)
 
 	m.mu.Lock()
-	r := m.games[code]
-	if r == nil {
-		r = game.NewRoom(defaultSB, defaultBB)
-		m.games[code] = r
-	}
+	r := m.roomLocked(code)
 	// Cancel any timer left over from a previous hand.
 	m.cancelTimerLocked(code)
 	// Seat exactly the non-spectator connected players.
@@ -179,6 +235,7 @@ func (m *Manager) handleStart(code string) {
 	for _, c := range clients {
 		if !c.Spectator {
 			r.SetName(c.ID, c.Name)
+			r.SetSeed(c.ID, c.Seed)
 		}
 	}
 	err := r.StartHand()
@@ -202,21 +259,33 @@ func (m *Manager) handleStart(code string) {
 	}
 }
 
-// OnJoin pushes the current public state to a client that just connected (and
-// its hole cards if it's already in the live hand and is not a spectator).
+// OnJoin seats the newcomer (between hands), pushes the current public state to
+// the whole room, and sends the joiner's hole cards if it reconnected mid-hand.
 func (m *Manager) OnJoin(c *hub.Client) {
 	m.mu.Lock()
+	// A join cancels any pending teardown for the room.
+	if t := m.cleanups[c.Room]; t != nil {
+		t.Stop()
+		delete(m.cleanups, c.Room)
+	}
 	// First non-spectator to join owns the room (start/config authority).
 	if !c.Spectator && m.owners[c.Room] == "" {
 		m.owners[c.Room] = c.ID
 	}
-	r := m.games[c.Room]
-	if r == nil {
-		m.mu.Unlock()
-		return
-	}
+	r := m.roomLocked(c.Room)
+	// Mirror the owner into the (possibly pre-existing) room: roomLocked only
+	// syncs on creation, and the room may have been vacated and re-entered.
+	m.syncOwnerLocked(c.Room)
 	if !c.Spectator {
 		r.SetName(c.ID, c.Name)
+		r.SetSeed(c.ID, c.Seed)
+		// Between hands, reflect connected players as seats immediately so the
+		// table shows who is waiting (instead of an empty roster until the deal).
+		// At showdown the finished hand's seats stay on display (PublicMsg reads
+		// them from the betting snapshot); the roster just gains the newcomer.
+		if betweenHands(r) {
+			r.SyncSeats(m.connectedPlayerIDs(c.Room))
+		}
 	}
 	pub := r.PublicMsg()
 	var hole game.ServerMsg
@@ -228,21 +297,19 @@ func (m *Manager) OnJoin(c *hub.Client) {
 	}
 	m.mu.Unlock()
 
-	m.sendTo(c, pub)
+	m.broadcast(c.Room, pub)
 	if hasHole {
 		m.sendTo(c, hole)
 	}
 }
 
-// OnLeave folds a player who disconnected mid-hand and rebroadcasts the state.
-// Spectator disconnects require no game action.
+// OnLeave folds a player who disconnected mid-hand, stands them up between
+// hands (parking their stack for the cash-out read), persists the hand if the
+// disconnect ended it, and schedules a teardown when the room empties.
 func (m *Manager) OnLeave(c *hub.Client) {
-	if c.Spectator {
-		return
-	}
 	m.mu.Lock()
 	// If the owner is leaving, hand control to another connected player.
-	if m.owners[c.Room] == c.ID {
+	if !c.Spectator && m.owners[c.Room] == c.ID {
 		m.reassignOwnerLocked(c.Room, c.ID)
 	}
 	r := m.games[c.Room]
@@ -250,17 +317,96 @@ func (m *Manager) OnLeave(c *hub.Client) {
 		m.mu.Unlock()
 		return
 	}
-	changed := r.LeaveFold(c.ID)
-	if changed {
-		m.cancelTimerLocked(c.Room)
-		m.armTimerLocked(c.Room, r)
+
+	var rec *store.HandRecord
+	changed := false
+	if !c.Spectator {
+		changed = r.LeaveFold(c.ID)
+		if changed {
+			m.cancelTimerLocked(c.Room)
+			m.armTimerLocked(c.Room, r)
+			if r.Phase() == game.PhaseShowdown {
+				// The disconnect ended the hand: persist it like any showdown.
+				rec = m.buildRecord(c.Room, r)
+				m.pruneDisconnectedLocked(c.Room, r, c.ID)
+			}
+		}
+		if betweenHands(r) && !r.InHand(c.ID) {
+			// Standing up outside a live hand: park the stack for cash-out.
+			r.RemoveSeat(c.ID)
+		}
 	}
+
+	// Last client out (the hub still counts the leaver): schedule the teardown.
+	if m.othersRemaining(c) == 0 {
+		m.scheduleTeardownLocked(c.Room)
+		m.mu.Unlock()
+		if rec != nil {
+			go m.persistHand(*rec)
+		}
+		return
+	}
+
 	pub := r.PublicMsg()
 	m.mu.Unlock()
 
-	if changed {
-		m.broadcast(c.Room, pub)
+	m.broadcast(c.Room, pub)
+	if rec != nil {
+		go m.persistHand(*rec)
 	}
+}
+
+// othersRemaining counts clients in the room besides the given one.
+func (m *Manager) othersRemaining(c *hub.Client) int {
+	n := 0
+	for _, other := range m.hub.Clients(c.Room) {
+		if other != c {
+			n++
+		}
+	}
+	return n
+}
+
+// pruneDisconnectedLocked stands up every seated player with no live connection
+// (run after a hand settles). Their stacks are parked in `departed` so a
+// pending cash-out can still read them. `alsoGone` treats one extra id as
+// disconnected (the client currently leaving). Must be called with m.mu held.
+func (m *Manager) pruneDisconnectedLocked(code string, r *game.Room, alsoGone string) {
+	connected := make(map[string]bool)
+	for _, c := range m.hub.Clients(code) {
+		if !c.Spectator {
+			connected[c.ID] = true
+		}
+	}
+	if alsoGone != "" {
+		delete(connected, alsoGone)
+	}
+	for _, id := range r.Seats() {
+		if !connected[id] {
+			r.RemoveSeat(id)
+		}
+	}
+}
+
+// scheduleTeardownLocked drops the room state after a grace period if it is
+// still empty. The grace keeps stacks readable for the leaver's cash-out and
+// survives a brief everyone-disconnected blip. Must be called with m.mu held.
+func (m *Manager) scheduleTeardownLocked(code string) {
+	if t := m.cleanups[code]; t != nil {
+		t.Stop()
+	}
+	m.cleanups[code] = time.AfterFunc(teardownGrace, func() {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		delete(m.cleanups, code)
+		if m.hub.RoomSize(code) > 0 {
+			return // someone came back; OnJoin also cancels, this is a backstop
+		}
+		m.cancelTimerLocked(code)
+		m.stopBlindTickerLocked(code)
+		delete(m.games, code)
+		delete(m.owners, code)
+	})
 }
 
 func (m *Manager) handleAction(code, id, action string, amount int) {
@@ -273,21 +419,37 @@ func (m *Manager) handleAction(code, id, action string, amount int) {
 	m.cancelTimerLocked(code)
 	err := r.Action(id, action, amount)
 	if err != nil {
+		// Invalid action: re-arm the timer so the actor is not left unclocked.
+		m.armTimerLocked(code, r)
 		m.mu.Unlock()
 		return
 	}
 	m.armTimerLocked(code, r)
 	atShowdown := r.Phase() == game.PhaseShowdown
-	pub := r.PublicMsg()
 	var rec *store.HandRecord
 	if atShowdown {
 		rec = m.buildRecord(code, r)
+		m.pruneDisconnectedLocked(code, r, "")
 	}
+	pub := r.PublicMsg()
 	m.mu.Unlock()
 	m.broadcast(code, pub)
 	if rec != nil {
 		go m.persistHand(*rec)
 	}
+}
+
+// Stacks returns the live per-player stacks for a room, or nil when the room
+// does not exist (expired or never created). Read by the economy backend at
+// cash-out via GET /stacks.
+func (m *Manager) Stacks(code string) map[string]int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	r := m.games[code]
+	if r == nil {
+		return nil
+	}
+	return r.Stacks()
 }
 
 // cancelTimerLocked stops and removes any active turn timer.
@@ -341,6 +503,7 @@ func (m *Manager) onTimeout(code, expectedUID string) {
 	var rec *store.HandRecord
 	if atShowdown {
 		rec = m.buildRecord(code, r)
+		m.pruneDisconnectedLocked(code, r, "")
 	}
 	m.mu.Unlock()
 	m.broadcast(code, pub)
@@ -349,33 +512,48 @@ func (m *Manager) onTimeout(code, expectedUID string) {
 	}
 }
 
-// resetBlindTicker cancels any existing blind ticker for the room and starts a
-// new one if the room's BlindLevelSecs > 0. Must be called with m.mu held.
-func (m *Manager) resetBlindTicker(code string, r *game.Room) {
-	if t := m.blinds[code]; t != nil {
-		t.Stop()
-		m.blinds[code] = nil
-	}
+// resetBlindTickerLocked cancels any existing blind ticker for the room and
+// starts a new one if the room's BlindLevelSecs > 0. Must be called with m.mu held.
+func (m *Manager) resetBlindTickerLocked(code string, r *game.Room) {
+	m.stopBlindTickerLocked(code)
 	secs := r.BlindLevelSecs()
 	if secs <= 0 {
 		return
 	}
-	t := time.NewTicker(time.Duration(secs) * time.Second)
-	m.blinds[code] = t
+	bt := &blindTicker{
+		ticker: time.NewTicker(time.Duration(secs) * time.Second),
+		stop:   make(chan struct{}),
+	}
+	m.blinds[code] = bt
 	go func() {
-		for range t.C {
-			m.mu.Lock()
-			room := m.games[code]
-			if room == nil {
-				m.mu.Unlock()
+		for {
+			select {
+			case <-bt.stop:
 				return
+			case <-bt.ticker.C:
+				m.mu.Lock()
+				room := m.games[code]
+				if room == nil {
+					m.mu.Unlock()
+					return
+				}
+				room.EscalateBlinds()
+				pub := room.PublicMsg()
+				m.mu.Unlock()
+				m.broadcast(code, pub)
 			}
-			room.EscalateBlinds()
-			pub := room.PublicMsg()
-			m.mu.Unlock()
-			m.broadcast(code, pub)
 		}
 	}()
+}
+
+// stopBlindTickerLocked stops the room's blind ticker (and its goroutine).
+// Must be called with m.mu held.
+func (m *Manager) stopBlindTickerLocked(code string) {
+	if bt := m.blinds[code]; bt != nil {
+		bt.ticker.Stop()
+		close(bt.stop)
+		delete(m.blinds, code)
+	}
 }
 
 // handlePause pauses or resumes the game. Cancels the turn timer when pausing
@@ -428,13 +606,6 @@ func (m *Manager) buildRecord(code string, r *game.Room) *store.HandRecord {
 			seatIDs = append(seatIDs, c.ID)
 		}
 	}
-	pub := r.PublicMsg()
-	// Extract board and reveals from the already-built public message.
-	// (Easier than duplicating the conversion logic.)
-	_ = pub // board and reveals are in r already via getters; use them directly.
-
-	// Board card IDs (from r.PublicMsg side-effect we won't re-encode — use getter).
-	boardCards := r.Board()
 	var reveals map[string][]string
 	if rv := r.Reveals(); len(rv) > 0 {
 		reveals = rv
@@ -444,7 +615,7 @@ func (m *Manager) buildRecord(code string, r *game.Room) *store.HandRecord {
 		HandNum:    r.HandNum(),
 		PlayedAt:   time.Now().UTC(),
 		Pot:        r.Pot(),
-		Community:  boardCards,
+		Community:  r.Board(),
 		Winners:    wrs,
 		Reveals:    reveals,
 		Categories: r.HandCategories(),

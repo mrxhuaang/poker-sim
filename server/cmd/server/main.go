@@ -62,6 +62,22 @@ func main() {
 		_ = json.NewEncoder(w).Encode(h.RoomsSnapshot())
 	})
 
+	// Live stacks for one room: the authority the economy backend reads at
+	// cash-out (server-to-server). Stack sizes are public table state already
+	// (broadcast to every client in PublicState), so no extra auth is needed.
+	mux.HandleFunc("/stacks", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		setCORS(w, r, h.AllowedOrigins)
+		code := r.URL.Query().Get("room")
+		stacks := mgr.Stacks(code)
+		if stacks == nil {
+			w.WriteHeader(http.StatusNotFound)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "room not found"})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"room": code, "stacks": stacks})
+	})
+
 	// Debug: prove authoritative dealing. Shuffles a fresh deck server-side and
 	// returns the top cards as ids. The real game never exposes the full deck.
 	mux.HandleFunc("/debug/deal", func(w http.ResponseWriter, _ *http.Request) {

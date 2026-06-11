@@ -48,3 +48,4 @@ next-env.d.ts
 # rust engine (build output; Cargo.lock IS committed for reproducible CI)
 /engine/target
 /engine/pkg
+server/bin/

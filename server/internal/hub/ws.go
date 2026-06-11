@@ -60,6 +60,7 @@ func (h *Hub) Handler(
 
 		ctx := r.Context()
 		client := h.Join(room, id, r.URL.Query().Get("name"))
+		client.Seed = r.URL.Query().Get("seed")
 		if r.URL.Query().Get("spectator") == "1" {
 			client.Spectator = true
 		}

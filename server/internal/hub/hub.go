@@ -11,6 +11,7 @@ import "sync"
 type Client struct {
 	ID        string
 	Name      string // display name (from ?name=); ID stays the unique key
+	Seed      string // avatar seed (from ?seed=); cosmetic only
 	Room      string
 	Spectator bool // true: receives state broadcasts but cannot act or be dealt in
 	send      chan []byte

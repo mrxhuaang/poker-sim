@@ -87,9 +87,11 @@ func TestDealFanOutAndPrivacy(t *testing.T) {
 		t.Fatalf("write deal: %v", err)
 	}
 
-	// Each client receives a public "state" broadcast + its own private "hole".
-	aMsgs := readMsgs(t, a, 2)
-	bMsgs := readMsgs(t, b, 2)
+	// Joins broadcast a state snapshot to the whole room (alice sees her own
+	// join + bob's, bob sees his own), then the deal adds a state + a private
+	// hole per player. The privacy scan below covers every received frame.
+	aMsgs := readMsgs(t, a, 4)
+	bMsgs := readMsgs(t, b, 3)
 
 	if !hasType(aMsgs, "state") || !hasType(bMsgs, "state") {
 		t.Fatal("both clients should receive a public state")

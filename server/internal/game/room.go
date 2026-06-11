@@ -2,6 +2,7 @@ package game
 
 import (
 	"errors"
+	"time"
 
 	"github.com/MrxHuaang/poker-sim/server/internal/poker"
 )
@@ -26,6 +27,10 @@ const (
 type Room struct {
 	seatIDs []string
 	chips   map[string]int
+	// departed holds the final stacks of players who stood up (left outside a
+	// live hand). The economy backend reads them at cash-out (the WS closes
+	// before the cash-out request lands); a rejoin starts fresh instead.
+	departed   map[string]int
 	button     int
 	handNum    int
 	sb, bb     int
@@ -40,7 +45,13 @@ type Room struct {
 	reveals  map[string][2]poker.Card // shown holes at a contested showdown
 	runs     []RunResult              // per-board results for run-it-N (nil for N=1)
 	names    map[string]string        // seat id -> display name
-	deadline int64                    // Unix ms when the active actor's turn expires (0 = none)
+	seeds    map[string]string        // seat id -> avatar seed (client-provided)
+	owner    string                   // uid allowed to start/configure (set by the session manager)
+	dealerID string                   // seat id holding the dealer button this hand
+	// lastAction is the most recent successful betting action (for client-side
+	// chip/action feedback). Cleared on each new hand.
+	lastAction *LastAction
+	deadline   int64 // Unix ms when the active actor's turn expires (0 = none)
 
 	// config
 	runItN         int // how many times to run out the board on all-in (1–3)
@@ -59,6 +70,7 @@ const defaultStartStack = 1000
 func NewRoom(smallBlind, bigBlind int) *Room {
 	return &Room{
 		chips:      make(map[string]int),
+		departed:   make(map[string]int),
 		button:     -1,
 		sb:         smallBlind,
 		bb:         bigBlind,
@@ -67,6 +79,7 @@ func NewRoom(smallBlind, bigBlind int) *Room {
 		phase:      PhaseIdle,
 		holes:      make(map[string][2]poker.Card),
 		names:      make(map[string]string),
+		seeds:      make(map[string]string),
 	}
 }
 
@@ -121,6 +134,17 @@ func (r *Room) SetName(id, name string) {
 	}
 }
 
+// SetSeed records a player's avatar seed (shown in PublicSeat).
+func (r *Room) SetSeed(id, seed string) {
+	if seed != "" {
+		r.seeds[id] = seed
+	}
+}
+
+// SetOwner records the uid with start/configure authority (published in
+// PublicState so clients can tailor the controls).
+func (r *Room) SetOwner(id string) { r.owner = id }
+
 // AddSeat seats a player with a starting stack (or updates the stack if already
 // seated). Stacks persist across hands.
 func (r *Room) AddSeat(id string, chips int) {
@@ -132,6 +156,46 @@ func (r *Room) AddSeat(id string, chips int) {
 
 func (r *Room) Seats() []string     { return append([]string(nil), r.seatIDs...) }
 
+// StartStack returns the stack granted to newly seated players.
+func (r *Room) StartStack() int { return r.startStack }
+
+// RemoveSeat drops a player from the roster, parking their final stack in
+// `departed` so the economy backend can still read it at cash-out (the WS
+// closes before the cash-out request arrives). A later rejoin starts fresh
+// from startStack instead of resurrecting a stack that was already paid out.
+func (r *Room) RemoveSeat(id string) {
+	if c, ok := r.chips[id]; ok {
+		r.departed[id] = c
+	}
+	delete(r.chips, id)
+	for i, s := range r.seatIDs {
+		if s == id {
+			r.seatIDs = append(r.seatIDs[:i], r.seatIDs[i+1:]...)
+			break
+		}
+	}
+}
+
+// Stacks returns the live stack per known player: remaining chips behind during
+// a hand (committed bets stay in the pot until settled), persisted stacks
+// otherwise, and the parting stacks of players who already stood up. This is
+// the authority the economy backend reads at cash-out.
+func (r *Room) Stacks() map[string]int {
+	out := make(map[string]int, len(r.chips)+len(r.departed))
+	for id, c := range r.departed {
+		out[id] = c
+	}
+	for id, c := range r.chips {
+		out[id] = c
+	}
+	if r.betting != nil && r.phase != PhaseIdle && r.phase != PhaseShowdown {
+		for _, s := range r.betting.Seats {
+			out[s.ID] = s.Chips
+		}
+	}
+	return out
+}
+
 // SyncSeats sets the active roster to exactly `ids` (the currently connected
 // players). New ids get startStack; returning ids keep their persisted stack;
 // disconnected ids drop from the roster (their stack is retained in case they
@@ -142,6 +206,9 @@ func (r *Room) SyncSeats(ids []string) {
 		if _, ok := r.chips[id]; !ok {
 			r.chips[id] = r.startStack
 		}
+		// A returning player starts a fresh session: their previous parting
+		// stack was settled by cash-out and must not be paid out again.
+		delete(r.departed, id)
 		r.seatIDs = append(r.seatIDs, id)
 	}
 }
@@ -155,6 +222,7 @@ func (r *Room) LeaveFold(id string) bool {
 	if !r.betting.ForceFold(id) {
 		return false
 	}
+	r.lastAction = &LastAction{SeatID: id, Action: "fold", TS: time.Now().UnixMilli()}
 	r.maybeAdvance()
 	return true
 }
@@ -264,6 +332,7 @@ func (r *Room) CanCheck(id string) bool {
 func (r *Room) SetDeadline(ms int64) { r.deadline = ms }
 
 var ErrNotEnoughPlayers = errors.New("need at least 2 funded players")
+var ErrHandInProgress = errors.New("hand already in progress")
 
 // StartHand shuffles a fresh deck (crypto RNG) and begins a hand.
 func (r *Room) StartHand() error {
@@ -274,6 +343,11 @@ func (r *Room) StartHand() error {
 
 // startHandWithDeck is the deterministic core (tests inject a known deck).
 func (r *Room) startHandWithDeck(deck []poker.Card) error {
+	// Refuse to restart while a hand is live: a mid-hand redeal would silently
+	// annul the pot (committed bets never reach applyWinnings).
+	if r.phase != PhaseIdle && r.phase != PhaseShowdown {
+		return ErrHandInProgress
+	}
 	funded := make([]string, 0, len(r.seatIDs))
 	for _, id := range r.seatIDs {
 		if r.chips[id] > 0 {
@@ -286,11 +360,14 @@ func (r *Room) startHandWithDeck(deck []poker.Card) error {
 
 	r.handNum++
 	r.button = (r.button + 1) % len(funded)
+	r.dealerID = funded[r.button]
 	r.deck = deck
 	r.board = nil
 	r.winners = nil
 	r.reveals = nil
 	r.runs = nil
+	r.handCategories = nil
+	r.lastAction = nil
 	r.holes = make(map[string][2]poker.Card)
 	r.phase = PhasePreflop
 
@@ -350,6 +427,7 @@ func (r *Room) Action(id, action string, amount int) error {
 	if err := r.betting.Apply(id, action, amount); err != nil {
 		return err
 	}
+	r.lastAction = &LastAction{SeatID: id, Action: action, Amount: amount, TS: time.Now().UnixMilli()}
 	r.maybeAdvance()
 	return nil
 }
@@ -495,21 +573,35 @@ func (r *Room) PublicMsg() ServerMsg {
 	var seats []PublicSeat
 	if r.betting != nil {
 		seats = make([]PublicSeat, len(r.betting.Seats))
+		inHand := make(map[string]bool, len(r.betting.Seats))
 		for i, s := range r.betting.Seats {
+			inHand[s.ID] = true
 			seats[i] = PublicSeat{
-				ID: s.ID, Name: r.names[s.ID], Chips: s.Chips, Bet: s.Bet, Status: string(s.Status),
+				ID: s.ID, Name: r.names[s.ID], Seed: r.seeds[s.ID],
+				Chips: s.Chips, Bet: s.Bet, TotalBet: s.TotalBet, Status: string(s.Status),
 				HasCards: s.Status != StatusFolded && s.Status != StatusOut,
+			}
+		}
+		// At showdown, also list players who joined while the hand ran so they
+		// see themselves seated (they are dealt in on the next hand).
+		if r.phase == PhaseShowdown {
+			for _, id := range r.seatIDs {
+				if !inHand[id] {
+					seats = append(seats, PublicSeat{ID: id, Name: r.names[id], Seed: r.seeds[id], Chips: r.chips[id], Status: string(StatusActive)})
+				}
 			}
 		}
 	} else {
 		seats = make([]PublicSeat, len(r.seatIDs))
 		for i, id := range r.seatIDs {
-			seats[i] = PublicSeat{ID: id, Name: r.names[id], Chips: r.chips[id], Status: string(StatusActive)}
+			seats[i] = PublicSeat{ID: id, Name: r.names[id], Seed: r.seeds[id], Chips: r.chips[id], Status: string(StatusActive)}
 		}
 	}
 	pot, toAct := 0, ""
+	currentBet, minRaise := 0, 0
 	if r.betting != nil {
 		pot, toAct = r.betting.Pot, r.betting.ToAct
+		currentBet, minRaise = r.betting.CurrentBet, r.betting.MinRaise
 	}
 	var reveals map[string][]string
 	if len(r.reveals) > 0 {
@@ -526,7 +618,10 @@ func (r *Room) PublicMsg() ServerMsg {
 		HandNum: r.handNum, Phase: string(r.phase), Board: board,
 		Pot: pot, ToAct: toAct, Deadline: r.deadline, Seats: seats,
 		Winners: r.winners, Reveals: reveals, Runs: r.runs,
-		SB: r.sb, BB: r.bb, Paused: r.paused, BustedOrder: bustedOrder,
+		SB: r.sb, BB: r.bb, StartStack: r.startStack,
+		CurrentBet: currentBet, MinRaise: minRaise,
+		Dealer: r.dealerID, Owner: r.owner, LastAction: r.lastAction,
+		Paused: r.paused, BustedOrder: bustedOrder,
 		HandCategories: r.HandCategories(),
 	})
 	return msg

@@ -114,6 +114,67 @@ func TestMultiHandRotatesButtonAndCarriesChips(t *testing.T) {
 	}
 }
 
+// A live hand cannot be restarted: a mid-hand redeal would annul the pot.
+func TestStartHandRejectedMidHand(t *testing.T) {
+	r := NewRoom(5, 10)
+	r.AddSeat("p1", 1000)
+	r.AddSeat("p2", 1000)
+	deck := deckOf(t, "AS", "AH", "KS", "KH", "2C", "7D", "9S", "JH", "3C")
+	if err := r.startHandWithDeck(deck); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	if err := r.startHandWithDeck(deck); err != ErrHandInProgress {
+		t.Fatalf("mid-hand restart: want ErrHandInProgress, got %v", err)
+	}
+	// After the hand settles, a new hand may start again.
+	for _, act := range []string{"call", "check", "check", "check", "check", "check", "check", "check"} {
+		_ = r.Action(r.betting.ToAct, act, 0)
+	}
+	if err := r.startHandWithDeck(deck); err != nil {
+		t.Fatalf("restart after showdown: %v", err)
+	}
+}
+
+// Stacks reflects live betting chips mid-hand and parks departed stacks until
+// the player rejoins (cash-out reads them after the WS already closed).
+func TestStacksAndDepartedLifecycle(t *testing.T) {
+	r := NewRoom(5, 10)
+	r.AddSeat("p1", 1000)
+	r.AddSeat("p2", 1000)
+	deck := deckOf(t, "AS", "AH", "KS", "KH", "2C", "7D", "9S", "JH", "3C")
+	if err := r.startHandWithDeck(deck); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	// Mid-hand: blinds already posted (p1 SB 5, p2 BB 10) -> live stacks shrink.
+	st := r.Stacks()
+	if st["p1"] != 995 || st["p2"] != 990 {
+		t.Fatalf("mid-hand stacks = %+v, want p1=995 p2=990", st)
+	}
+	for _, act := range []string{"call", "check", "check", "check", "check", "check", "check", "check"} {
+		_ = r.Action(r.betting.ToAct, act, 0)
+	}
+	// Post-hand (p1 wins 20): persisted stacks.
+	st = r.Stacks()
+	if st["p1"] != 1010 || st["p2"] != 990 {
+		t.Fatalf("post-hand stacks = %+v, want p1=1010 p2=990", st)
+	}
+	// p2 stands up: stack parks in departed, still visible to Stacks.
+	r.RemoveSeat("p2")
+	st = r.Stacks()
+	if st["p2"] != 990 {
+		t.Fatalf("departed stack lost: %+v", st)
+	}
+	if got := len(r.Seats()); got != 1 {
+		t.Fatalf("roster size = %d, want 1", got)
+	}
+	// p2 rejoins: fresh seat at startStack, departed entry cleared.
+	r.SyncSeats([]string{"p1", "p2"})
+	st = r.Stacks()
+	if st["p2"] != r.StartStack() {
+		t.Fatalf("rejoin stack = %d, want startStack %d", st["p2"], r.StartStack())
+	}
+}
+
 // Folding to one player ends the hand immediately; that player wins the blinds.
 func TestFoldEndsHand(t *testing.T) {
 	r := NewRoom(5, 10)

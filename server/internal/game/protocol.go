@@ -47,6 +47,20 @@ type PublicState struct {
 	// display the blind level and compute pot-odds quick-sizes.
 	SB int `json:"sb"`
 	BB int `json:"bb"`
+	// StartStack is the stack granted to a newly seated player. Clients use it
+	// to escrow the matching coin buy-in instead of guessing from URL params.
+	StartStack int `json:"startStack"`
+	// CurrentBet / MinRaise mirror the live betting round so clients can size
+	// raises without re-deriving the rules. Zero outside a betting round.
+	CurrentBet int `json:"currentBet,omitempty"`
+	MinRaise   int `json:"minRaise,omitempty"`
+	// Dealer is the seat id holding the button this hand ("" before the first deal).
+	Dealer string `json:"dealer,omitempty"`
+	// Owner is the uid with start/configure authority (first player to join).
+	Owner string `json:"owner,omitempty"`
+	// LastAction is the most recent successful betting action, for client-side
+	// action feedback (chip flourish, "raise 40" tag). Cleared on each new hand.
+	LastAction *LastAction `json:"lastAction,omitempty"`
 	// Paused is true when the owner has suspended the game (tournament break).
 	// While paused, action messages are ignored.
 	Paused bool `json:"paused,omitempty"`
@@ -62,10 +76,20 @@ type PublicState struct {
 type PublicSeat struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
+	Seed     string `json:"seed,omitempty"` // avatar seed (client-provided at join)
 	Chips    int    `json:"chips"`
 	Bet      int    `json:"bet"`
+	TotalBet int    `json:"totalBet,omitempty"` // committed across the whole hand
 	Status   string `json:"status"`
 	HasCards bool   `json:"hasCards"`
+}
+
+// LastAction describes the most recent successful betting action.
+type LastAction struct {
+	SeatID string `json:"seatId"`
+	Action string `json:"action"`
+	Amount int    `json:"amount,omitempty"`
+	TS     int64  `json:"ts"` // Unix ms
 }
 
 // PrivateHole is sent ONLY to the owning seat.
