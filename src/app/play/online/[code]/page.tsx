@@ -58,6 +58,8 @@ function PlayOnlinePageInner() {
   const router = useRouter();
   // ?spectator=1: espectador puro por URL (sin botón de sentarse).
   const urlSpectator = search.get("spectator") === "1";
+  // ?casual=1: sala sin monedas — el creador lo propaga; lo confirmamos con state.casual.
+  const urlCasual = search.get("casual") === "1";
 
   const { isGuest, loading: authLoading } = useAuth();
 
@@ -71,10 +73,20 @@ function PlayOnlinePageInner() {
   const [showLoginCta, setShowLoginCta] = useState(false);
   const [seatOverlayDismissed, setSeatOverlayDismissed] = useState(false);
 
-  // Conexión: jugador solo con intención + cuenta real; si no, espectador.
-  const asSpectator = urlSpectator || !wantSeat || isGuest;
+  // casualConfirmed empieza con la señal de la URL y se actualiza cuando
+  // llega state.casual=true del servidor. Necesita ser state (no ref) para
+  // que asSpectator se recalcule y el WS reconecte cuando el invitado da click en Sentarme.
+  const [casualConfirmed, setCasualConfirmed] = useState(urlCasual);
+  // Conexión: jugador con intención + (cuenta real O modo casual); si no, espectador.
+  const asSpectator = urlSpectator || !wantSeat || (isGuest && !casualConfirmed);
   const { connected, status, state, hole, uid, name, seed, error, start, action, config, pause, resume, getToken } =
     useServerGame(authLoading ? null : code, asSpectator);
+
+  // Confirmar modo casual tan pronto llegue el primer state del servidor.
+  const isCasual = casualConfirmed || !!state?.casual;
+  useEffect(() => {
+    if (state?.casual && !casualConfirmed) setCasualConfirmed(true);
+  }, [state?.casual, casualConfirmed]);
 
   const chat = useChat(code);
   const { send: sendPhrase, activePhrases } = useTableChat(code, uid);
@@ -96,11 +108,11 @@ function PlayOnlinePageInner() {
     const stack = Number(search.get("stack"));
     const runItN = Number(search.get("runItN")) || undefined;
     const blindLevelSecs = Number(search.get("blindLevelSecs")) || undefined;
-    if (sb > 0 || bb > 0 || stack > 0 || runItN || blindLevelSecs) {
-      config(sb || 0, bb || 0, stack || 0, runItN, blindLevelSecs);
+    if (sb > 0 || bb > 0 || stack > 0 || runItN || blindLevelSecs || urlCasual) {
+      config(sb || 0, bb || 0, stack || 0, runItN, blindLevelSecs, urlCasual || undefined);
       configSent.current = true;
     }
-  }, [connected, search, config, asSpectator]);
+  }, [connected, search, config, asSpectator, urlCasual]);
 
   // --- Posición propia ------------------------------------------------------
   const amSeated = !!(uid && state?.seats.some((s) => s.id === uid) && !asSpectator);
@@ -110,11 +122,15 @@ function PlayOnlinePageInner() {
   // --- Economía -------------------------------------------------------------
   // Escrow del buy-in al obtener asiento: el monto es el startStack que el
   // servidor realmente otorga (no un parámetro de URL adivinado).
+  // En modo casual todo el bloque de economía se omite.
   const escrowRef = useRef<{ code: string; amount: number } | null>(null);
   const settledRef = useRef(false);
   const tokenRef = useRef<string | null>(null);
   const chipsRef = useRef(0);
   const biggestPotRef = useRef(0);
+  // Ref para que settle() pueda leer isCasual sin reinicializarse como función.
+  const casualRef = useRef(isCasual);
+  useEffect(() => { casualRef.current = isCasual; }, [isCasual]);
 
   useEffect(() => {
     getToken().then((t) => {
@@ -124,6 +140,7 @@ function PlayOnlinePageInner() {
 
   useEffect(() => {
     if (!amSeated || !code || !uid || !state || escrowRef.current) return;
+    if (state.casual) return; // modo casual: sin compra de fichas
     const amount = state.startStack || 1000;
     escrowRef.current = { code, amount };
     settledRef.current = false;
@@ -157,6 +174,7 @@ function PlayOnlinePageInner() {
   // escrow; volver a sentarse abre un escrow nuevo.
   const settle = useMemo(() => {
     return (keepalive: boolean) => {
+      if (casualRef.current) return; // modo casual: sin liquidación
       const esc = escrowRef.current;
       const token = tokenRef.current;
       if (!esc || !token || settledRef.current) return;
@@ -197,7 +215,7 @@ function PlayOnlinePageInner() {
 
   // --- Acciones de asiento ----------------------------------------------------
   function handleSit() {
-    if (isGuest) {
+    if (isGuest && !isCasual) {
       setShowLoginCta(true);
       return;
     }
@@ -281,7 +299,7 @@ function PlayOnlinePageInner() {
       {/* Show when: not yet seated AND (hasn't asked to sit, OR is a guest who can't sit). */}
       {state && !urlSpectator && !amSeated && !inQueue && (!wantSeat || isGuest) && !seatOverlayDismissed && (
         <div className="glass-panel flex flex-col items-center gap-3 rounded-[28px] px-6 py-5">
-          {isGuest ? (
+          {isGuest && !isCasual ? (
             <>
               <UserRound className="w-6 h-6 text-accent-400" />
               <p className="text-sm text-zinc-300 text-center max-w-[260px]">
