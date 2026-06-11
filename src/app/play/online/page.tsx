@@ -3,7 +3,7 @@ import { DesktopOnlyGate } from "@/components/ui/DesktopOnlyGate";
 import { BorderGlow } from "@/components/ui/BorderGlow";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Wifi } from "lucide-react";
+import { Coins, Users, Wifi } from "lucide-react";
 import { ACCENT_GLOW_COLORS } from "@/lib/brand";
 
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -26,6 +26,7 @@ export default function OnlineLandingPage() {
 
 function OnlineLandingPageInner() {
   const router = useRouter();
+  const [casual, setCasual] = useState(false);
   const [sb, setSb] = useState(5);
   const [bb, setBb] = useState(10);
   const [stack, setStack] = useState(1000);
@@ -38,6 +39,7 @@ function OnlineLandingPageInner() {
       bb: String(bb),
       stack: String(stack),
       runItN: String(runItN),
+      ...(casual ? { casual: "1" } : {}),
       ...(blindLevelMins > 0 ? { blindLevelSecs: String(blindLevelMins * 60) } : {}),
     });
     router.push(`/play/online/${genCode()}?${q.toString()}`);
@@ -62,6 +64,41 @@ function OnlineLandingPageInner() {
             Configura y crea tu sala. Comparte el código con tus jugadores.
           </p>
         </div>
+
+        {/* Mode toggle */}
+        <div className="grid grid-cols-2 gap-2 p-1.5 rounded-2xl bg-black/30 ring-1 ring-white/10">
+          <button
+            type="button"
+            onClick={() => setCasual(false)}
+            className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition ${
+              !casual
+                ? "bg-accent-500/25 text-accent-100 ring-1 ring-accent-400/40 shadow-lg"
+                : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            <Coins className="w-4 h-4 shrink-0" />
+            Con fichas
+          </button>
+          <button
+            type="button"
+            onClick={() => setCasual(true)}
+            className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition ${
+              casual
+                ? "bg-accent-500/25 text-accent-100 ring-1 ring-accent-400/40 shadow-lg"
+                : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            <Users className="w-4 h-4 shrink-0" />
+            Casual
+          </button>
+        </div>
+
+        {/* Mode description */}
+        <p className="text-xs text-zinc-500 -mt-3 px-1 leading-relaxed">
+          {casual
+            ? "Sin monedas — el host elige los stacks, rebuys libres, cualquier jugador puede entrar sin cuenta."
+            : "Las monedas reales de cada jugador se mueven en la mesa. Requiere cuenta registrada."}
+        </p>
 
         <BorderGlow
           className="w-full lg-blur"
@@ -132,14 +169,14 @@ function OnlineLandingPageInner() {
               onClick={create}
               className="w-full px-4 py-3 rounded-2xl bg-accent-500/20 ring-1 ring-accent-400/40 text-accent-100 font-black text-sm tracking-wide hover:bg-accent-500/30 hover:ring-accent-400/60 transition btn-press"
             >
-              Crear mesa
+              Crear mesa {casual ? "casual" : "con fichas"}
             </button>
           </div>
         </BorderGlow>
 
         <p className="text-center text-xs text-zinc-400 px-1">
           Para unirte a una sala existente, ve al{" "}
-          <a href="/lobby" className="text-zinc-400 hover:text-zinc-200 transition underline underline-offset-2">
+          <a href="/lobby" className="text-zinc-300 hover:text-zinc-100 transition underline underline-offset-2">
             lobby
           </a>
           {" "}o introduce el código directamente en la URL.
